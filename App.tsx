@@ -6,7 +6,7 @@ import OrderForm from './components/OrderForm';
 import AdminPanel from './components/AdminPanel';
 import { generatePattern } from './services/geminiService';
 import { Settings, ShoppingBag, Layers, Box, Download, Moon, Sun, Edit3 } from 'lucide-react';
-import { DEFAULT_FAN_PATH, DEFAULT_POLYMER_IMAGE, DEFAULT_LOGO } from './constants';
+import { DEFAULT_FAN_PATH, DEFAULT_POLYMER_IMAGE, DEFAULT_LOGO, DEFAULT_CLOTH_SVG_URL } from './constants';
 import { AppView, Order, FanType, CustomFont } from './types';
 
 // Declare fabric
@@ -85,6 +85,48 @@ function App() {
         return saved ? JSON.parse(saved) : [];
     } catch (e) { return []; }
   });
+
+  // INITIALIZATION: Fetch Default Cloth SVG from GitHub/CDN
+  useEffect(() => {
+    const savedTemplate = localStorage.getItem('custom_fan_template');
+    
+    // We force an update if:
+    // 1. There is NO saved template.
+    // 2. OR the saved template is identical to the OLD hardcoded path (DEFAULT_FAN_PATH), meaning we need to upgrade it.
+    const shouldFetch = !savedTemplate || savedTemplate === DEFAULT_FAN_PATH;
+
+    if (shouldFetch) {
+        console.log("Fetching updated default SVG from:", DEFAULT_CLOTH_SVG_URL);
+        fetch(DEFAULT_CLOTH_SVG_URL)
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.text();
+            })
+            .then(svgText => {
+                // Validate it's an SVG
+                if (!svgText.includes('<svg') && !svgText.includes('<path')) {
+                     throw new Error('Invalid SVG content');
+                }
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(svgText, "image/svg+xml");
+                const pathElement = doc.querySelector('path');
+                const pathData = pathElement?.getAttribute('d');
+                
+                if (pathData) {
+                    console.log("SVG Template updated successfully.");
+                    setClothFanPath(pathData);
+                    localStorage.setItem('custom_fan_template', pathData); // Persist the new one
+                } else {
+                    console.warn("No path found in fetched SVG, keeping fallback.");
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching default cloth SVG:", error);
+                // Fallback remains in state
+            });
+    }
+  }, []);
 
   // Load Custom Fonts into DOM
   useEffect(() => {

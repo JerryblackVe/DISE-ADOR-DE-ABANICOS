@@ -1,5 +1,4 @@
 
-
 // SVG Path representing a standard 180-degree hand fan shape (Pais)
 // Centered relative to origin (0,0) at the baseline.
 // Shapes draws UPWARDS (Negative Y in SVG coords)
@@ -8,11 +7,14 @@
 // Perfect semicircular arch (rainbow shape)
 export const DEFAULT_FAN_PATH = "M -280 0 A 280 280 0 0 1 280 0 L 100 0 A 100 100 0 0 0 -100 0 Z";
 
+// New Default Cloth SVG URL (Using jsDelivr CDN for better reliability/CORS)
+export const DEFAULT_CLOTH_SVG_URL = "https://cdn.jsdelivr.net/gh/JerryblackVe/imagenes_almacen@main/tela_canva_abanico.svg";
+
 // Placeholder for Polymer Fan Image (Using external URL)
-export const DEFAULT_POLYMER_IMAGE = "https://i.postimg.cc/CnsQ9VfP/canvapolimero.png";
+export const DEFAULT_POLYMER_IMAGE = "https://github.com/JerryblackVe/imagenes_almacen/blob/main/canvapolimero.png?raw=true";
 
 // Default Logo Path (Using external URL)
-export const DEFAULT_LOGO = "https://i.postimg.cc/q6x5Wd3H/LOGO.png";
+export const DEFAULT_LOGO = "https://github.com/JerryblackVe/imagenes_almacen/blob/main/LOGO.png?raw=true";
 
 // Mock template data
 export const DEFAULT_TEMPLATE = {
