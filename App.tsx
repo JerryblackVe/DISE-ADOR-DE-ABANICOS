@@ -5,7 +5,7 @@ import Editor from './components/Editor';
 import OrderForm from './components/OrderForm';
 import AdminPanel from './components/AdminPanel';
 import { generatePattern } from './services/geminiService';
-import { Settings, ShoppingBag, Layers, Box, Download, Moon, Sun } from 'lucide-react';
+import { Settings, ShoppingBag, Layers, Box, Download, Moon, Sun, Menu } from 'lucide-react';
 import { DEFAULT_FAN_PATH, DEFAULT_POLYMER_IMAGE } from './constants';
 import { AppView, Order, FanType, CustomFont } from './types';
 
@@ -282,16 +282,12 @@ function App() {
 
     } catch (error) {
         console.error("Error quitando fondo:", error);
-        alert("Hubo un error al procesar la imagen.");
+        alert("Hubo un error al procesar el imagen.");
         setIsProcessing(false);
     }
   };
 
   const handleGenerateAI = async () => {
-    if (!(window as any).aistudio.hasSelectedApiKey()) {
-        await (window as any).aistudio.openSelectKey();
-    }
-
     const userPrompt = window.prompt("Describe el patrón o ilustración que quieres generar:");
     if (!userPrompt || !canvas) return;
 
@@ -317,7 +313,7 @@ function App() {
         addToCanvas(img);
       }, { crossOrigin: 'anonymous' });
     } else {
-      alert("No se pudo generar la imagen.");
+      alert("No se pudo generar la imagen. Verifica que la API KEY esté configurada en Vercel.");
     }
     setIsProcessing(false);
   };
@@ -532,34 +528,52 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-gray-50 dark:bg-gray-900 overflow-hidden font-sans transition-colors duration-200">
-      <Toolbar 
-        onAddText={handleAddText}
-        onAddImage={handleAddImage}
-        onColorChange={setSelectedColor}
-        selectedObject={selectedObject}
-        onUpdateObject={updateObject}
-        onDelete={deleteObject}
-        onGenerateAI={handleGenerateAI}
-        onRemoveBackground={handleRemoveBackground}
-        isProcessing={isProcessing}
-        onUndo={() => {}}
-        onRedo={() => {}}
-        onSendToBack={sendToBack}
-        onBringToFront={bringToFront}
-        backgroundColor={selectedColor}
-        fanType={fanType}
-        onRibColorChange={handleRibColorChange}
-        ribColor={ribColor}
-        onMatchRibColor={handleMatchRibColor}
-        customFonts={customFonts}
-      />
+    // Use 100dvh for proper mobile height including address bar, prevent global scroll
+    <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-gray-50 dark:bg-gray-900 overflow-hidden font-sans transition-colors duration-200">
+      
+      {/* 
+         LAYOUT STRUCTURE:
+         Mobile: Header -> Canvas (Flex-1) -> Toolbar (Fixed Height Panel)
+         Desktop: Toolbar (Left Sidebar) -> Header -> Canvas
+      */}
 
-      <div className="flex-1 flex flex-col h-full relative">
-        <header className="h-20 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center px-6 shadow-sm z-10 transition-colors">
-           <div className="flex items-center gap-4">
-              {/* LOGO SECTION - Dynamic from State */}
-              <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-orange-200 dark:border-orange-900 shadow-sm relative group bg-white flex items-center justify-center">
+      {/* TOOLBAR WRAPPER */}
+      {/* Mobile: Order 3 (Bottom). Desktop: Order 1 (Left), Fixed width */}
+      <div className="order-3 md:order-1 z-30 shrink-0 w-full h-[40vh] md:w-80 md:h-full relative shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] md:shadow-xl">
+        <Toolbar 
+            onAddText={handleAddText}
+            onAddImage={handleAddImage}
+            onColorChange={setSelectedColor}
+            selectedObject={selectedObject}
+            onUpdateObject={updateObject}
+            onDelete={deleteObject}
+            onGenerateAI={handleGenerateAI}
+            onRemoveBackground={handleRemoveBackground}
+            isProcessing={isProcessing}
+            onUndo={() => {}}
+            onRedo={() => {}}
+            onSendToBack={sendToBack}
+            onBringToFront={bringToFront}
+            backgroundColor={selectedColor}
+            fanType={fanType}
+            onRibColorChange={handleRibColorChange}
+            ribColor={ribColor}
+            onMatchRibColor={handleMatchRibColor}
+            customFonts={customFonts}
+        />
+      </div>
+
+      {/* MAIN CONTENT WRAPPER */}
+      {/* Mobile: Order 2. Desktop: Order 2. Takes remaining space. */}
+      <div className="flex-1 flex flex-col h-full relative order-2 min-w-0">
+        
+        {/* HEADER */}
+        <header className="h-16 md:h-20 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center px-3 md:px-6 shadow-sm z-20 transition-colors shrink-0">
+           
+           {/* LEFT: Logo & Title */}
+           <div className="flex items-center gap-2 md:gap-4 overflow-hidden min-w-0">
+              {/* LOGO */}
+              <div className="h-9 w-9 md:h-12 md:w-12 rounded-full overflow-hidden border-2 border-orange-200 dark:border-orange-900 shadow-sm relative group bg-white flex items-center justify-center shrink-0">
                  <img
                    src={logoSrc} 
                    alt="FP"
@@ -571,19 +585,20 @@ function App() {
                  />
               </div>
               
-              <div className="flex flex-col">
-                  <h1 className="text-xl font-black text-gray-900 dark:text-white leading-none tracking-tight uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      Diseñador de Abanicos
+              <div className="flex flex-col min-w-0">
+                  <h1 className="text-sm md:text-xl font-black text-gray-900 dark:text-white leading-none tracking-tight uppercase truncate" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      <span className="hidden sm:inline">Diseñador de Abanicos</span>
+                      <span className="sm:hidden">Diseñador</span>
                   </h1>
-                  <span className="text-[10px] font-bold text-orange-500 tracking-[0.2em] uppercase mt-1">
+                  <span className="text-[10px] md:text-[10px] font-bold text-orange-500 tracking-[0.2em] uppercase mt-0.5 truncate">
                       Fantastic Plastik
                   </span>
               </div>
 
-              <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-2 hidden md:block"></div>
+              <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-2 hidden lg:block"></div>
               
-              {/* MODE SWITCHER */}
-              <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg hidden md:flex">
+              {/* MODE SWITCHER (Desktop) */}
+              <div className="hidden lg:flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
                   <button 
                     onClick={() => toggleFanType('cloth')}
                     className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${fanType === 'cloth' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
@@ -599,67 +614,71 @@ function App() {
               </div>
            </div>
            
-           <div className="flex items-center space-x-3">
+           {/* RIGHT: Actions */}
+           <div className="flex items-center gap-1 md:gap-3">
                <button 
                  onClick={toggleDarkMode}
-                 className="p-2 text-gray-400 hover:text-yellow-500 dark:text-gray-300 dark:hover:text-yellow-400 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-                 title="Modo Oscuro/Claro"
+                 className="p-1.5 md:p-2 text-gray-400 hover:text-yellow-500 dark:text-gray-300 dark:hover:text-yellow-400 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
                >
                    {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
                </button>
                
                <button 
                  onClick={() => setCurrentView(AppView.ADMIN)}
-                 className="p-2 text-gray-400 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition-colors"
-                 title="Configuración"
+                 className="p-1.5 md:p-2 text-gray-400 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition-colors"
                >
                    <Settings size={20} />
                </button>
+               
                <button
                 onClick={handleDownloadImage}
-                className="flex items-center px-3 py-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-gray-700 rounded transition-colors"
-                title="Descargar Imagen"
+                className="flex items-center justify-center p-1.5 md:px-3 md:py-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-gray-700 rounded transition-colors"
+                title="Descargar Diseño"
                >
-                   <span className="text-xs font-bold mr-2">Descargar PNG</span>
+                   <span className="hidden md:inline text-xs font-bold mr-2">Descargar Diseño</span>
                    <Download size={20} />
                </button>
+               
                <button 
                 onClick={handleProceedToCheckout}
-                className="px-6 py-2 bg-gray-900 hover:bg-gray-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white rounded-lg font-bold shadow-md transition-transform active:scale-95 text-xs uppercase tracking-wide"
+                className="ml-1 px-3 md:px-6 py-2 bg-gray-900 hover:bg-gray-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white rounded-lg font-bold shadow-md transition-transform active:scale-95 text-[10px] md:text-xs uppercase tracking-wide whitespace-nowrap"
                >
-                  Finalizar Diseño
+                  Finalizar <span className="hidden md:inline">Diseño</span>
                </button>
            </div>
         </header>
 
-        {/* Mobile Mode Switcher */}
-        <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-2 flex justify-center">
-             <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg w-full max-w-xs">
+        {/* Mobile Mode Switcher (Visible only on small screens) */}
+        <div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-1 px-2 flex justify-center shrink-0 z-10">
+             <div className="flex bg-gray-100 dark:bg-gray-700 p-0.5 rounded-lg w-full max-w-sm">
                   <button 
                     onClick={() => toggleFanType('cloth')}
-                    className={`flex-1 px-4 py-1.5 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${fanType === 'cloth' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}
+                    className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded transition-all ${fanType === 'cloth' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}
                   >
                      Tela
                   </button>
                   <button 
                     onClick={() => toggleFanType('polymer')}
-                    className={`flex-1 px-4 py-1.5 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${fanType === 'polymer' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}
+                    className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded transition-all ${fanType === 'polymer' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}
                   >
                      Polímero
                   </button>
               </div>
         </div>
 
-        <Editor 
-            onCanvasReady={setCanvas}
-            onSelectionChange={setSelectedObject}
-            selectedColor={selectedColor}
-            fanPath={clothFanPath}
-            polymerImage={polymerFanImage}
-            fanType={fanType}
-            ribColor={ribColor}
-            isDarkMode={isDarkMode}
-        />
+        {/* MAIN CANVAS AREA - Fills remaining space in the column */}
+        <div className="flex-1 relative overflow-hidden bg-gray-100 dark:bg-gray-900 flex flex-col">
+            <Editor 
+                onCanvasReady={setCanvas}
+                onSelectionChange={setSelectedObject}
+                selectedColor={selectedColor}
+                fanPath={clothFanPath}
+                polymerImage={polymerFanImage}
+                fanType={fanType}
+                ribColor={ribColor}
+                isDarkMode={isDarkMode}
+            />
+        </div>
       </div>
     </div>
   );

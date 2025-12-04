@@ -37,8 +37,9 @@ const Editor: React.FC<EditorProps> = ({
     const pathWidth = tempPath.width || 560;
     const pathHeight = tempPath.height || 280;
 
-    const scaleX = (canvasWidth * 0.8) / pathWidth;
-    const scaleY = (canvasHeight * 0.8) / pathHeight;
+    // Maximized scale factor to 0.95 to fill almost all space
+    const scaleX = (canvasWidth * 0.95) / pathWidth;
+    const scaleY = (canvasHeight * 0.95) / pathHeight;
     const scale = Math.min(scaleX, scaleY);
 
     const left = canvasWidth / 2;
@@ -114,8 +115,9 @@ const Editor: React.FC<EditorProps> = ({
               const baseSrc = dataToImage(baseData);
               const frameSrc = dataToImage(frameData);
               
-              const scaleX = (width * 0.8) / img.width;
-              const scaleY = (height * 0.8) / img.height;
+              // Maximized scale factor to 0.95
+              const scaleX = (width * 0.95) / img.width;
+              const scaleY = (height * 0.95) / img.height;
               const scale = Math.min(scaleX, scaleY);
               const centerOpts = {
                  originX: 'center',
@@ -291,8 +293,9 @@ const Editor: React.FC<EditorProps> = ({
             newLeft = geo.left;
             newTop = geo.top;
         } else {
-             const scaleX = (newW * 0.8) / refObj.width!;
-             const scaleY = (newH * 0.8) / refObj.height!;
+             // Maximized scale factor to 0.95
+             const scaleX = (newW * 0.95) / refObj.width!;
+             const scaleY = (newH * 0.95) / refObj.height!;
              newScale = Math.min(scaleX, scaleY);
              newLeft = newW / 2;
              newTop = newH / 2;
@@ -334,16 +337,32 @@ const Editor: React.FC<EditorProps> = ({
         canvas.requestRenderAll();
     };
 
-    window.addEventListener('resize', handleResize);
+    // Use ResizeObserver for more robust container resizing detection
+    const resizeObserver = new ResizeObserver((entries) => {
+        // Fix for "ResizeObserver loop completed with undelivered notifications"
+        // We wrap the resize logic in requestAnimationFrame to decouple it from the current paint cycle
+        window.requestAnimationFrame(() => {
+            if (!Array.isArray(entries) || !entries.length) return;
+            handleResize();
+        });
+    });
+
+    if (containerRef.current) {
+        resizeObserver.observe(containerRef.current);
+    }
+
+    // Initial resize trigger
+    setTimeout(() => handleResize(), 100);
+
     onCanvasReady(canvas);
     setIsReady(true);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       canvas.dispose();
       fabricRef.current = null;
     };
-  }, [fanPath, fanType, polymerImage]); // isDarkMode removed from dependency to avoid full re-init, handled by separate effect
+  }, [fanPath, fanType, polymerImage]); // isDarkMode removed from dependency to avoid full re-init
 
   useEffect(() => {
       if (!fabricRef.current || fanType !== 'polymer') return;
@@ -393,15 +412,18 @@ const Editor: React.FC<EditorProps> = ({
   }, [selectedColor, fanType]);
 
   return (
-    <div className="flex-1 bg-gray-100 dark:bg-gray-800 flex items-center justify-center relative p-4 md:p-8 transition-colors">
+    // Force full width/height on editor container
+    <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center relative p-1 md:p-2 transition-colors">
       <div 
         ref={containerRef} 
-        className="w-full h-full max-w-5xl max-h-[700px] bg-white dark:bg-gray-700 shadow-2xl rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 relative transition-colors"
+        className="w-full h-full bg-white dark:bg-gray-700 shadow-xl rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 relative transition-colors"
       >
         <canvas ref={canvasRef} />
         {!isReady && <div className="absolute inset-0 flex items-center justify-center text-gray-400">Cargando Editor...</div>}
       </div>
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 dark:bg-black/90 text-white px-4 py-2 rounded-full text-xs backdrop-blur-sm pointer-events-none z-10">
+      
+      {/* Badge moved to top-right on mobile to avoid overlap with thumb controls */}
+      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 md:bottom-4 bg-black/70 dark:bg-black/90 text-white px-3 py-1 md:px-4 md:py-2 rounded-full text-[10px] md:text-xs backdrop-blur-sm pointer-events-none z-10 whitespace-nowrap">
         Área de Impresión (23cm)
       </div>
     </div>
