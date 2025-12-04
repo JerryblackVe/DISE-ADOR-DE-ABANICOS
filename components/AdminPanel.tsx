@@ -20,7 +20,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ orders, onBack, onTemplateUpdat
   // -- SECURITY --
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
-  const [storedPassword, setStoredPassword] = useState(() => localStorage.getItem('admin_password') || 'admin123');
+  const [storedPassword, setStoredPassword] = useState(() => localStorage.getItem('admin_password') || 'Valeria.1');
   const [newPassword, setNewPassword] = useState('');
 
   const handleLogin = (e: React.FormEvent) => {
