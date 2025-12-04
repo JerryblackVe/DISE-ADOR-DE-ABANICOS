@@ -8,11 +8,11 @@
 // Perfect semicircular arch (rainbow shape)
 export const DEFAULT_FAN_PATH = "M -280 0 A 280 280 0 0 1 280 0 L 100 0 A 100 100 0 0 0 -100 0 Z";
 
-// Placeholder for Polymer Fan Image (User will upload their own)
-export const DEFAULT_POLYMER_IMAGE = "/imagenes/canvapolimero.png";
+// Placeholder for Polymer Fan Image (Using external URL)
+export const DEFAULT_POLYMER_IMAGE = "https://i.postimg.cc/CnsQ9VfP/canvapolimero.png";
 
-// Default Logo Path
-export const DEFAULT_LOGO = "/imagenes/logo.png";
+// Default Logo Path (Using external URL)
+export const DEFAULT_LOGO = "https://i.postimg.cc/q6x5Wd3H/LOGO.png";
 
 // Mock template data
 export const DEFAULT_TEMPLATE = {
