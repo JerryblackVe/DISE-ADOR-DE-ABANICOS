@@ -12,6 +12,35 @@ import { AppView, Order, FanType, CustomFont } from './types';
 // Declare fabric
 declare const fabric: any;
 
+// Helper: Image Compressor to prevent localStorage quota exceeded errors
+const compressImage = (base64Str: string, maxWidth: number, quality: number = 0.7): Promise<string> => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            
+            // Use JPEG for compression even if source was PNG, unless transparency is strictly needed for templates.
+            // For Polymer templates, we need transparency, so we stick to PNG but rely on resizing.
+            // For Logos, PNG is safer.
+            resolve(canvas.toDataURL('image/png', quality));
+        };
+        img.onerror = () => resolve(base64Str); // Fallback
+    });
+};
+
 function App() {
   const [currentView, setCurrentView] = useState<AppView>(AppView.EDITOR);
   const [canvas, setCanvas] = useState<any>(null);
@@ -26,9 +55,11 @@ function App() {
   
   // 1. Dark Mode
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-      const saved = localStorage.getItem('dark_mode');
-      if (saved) return JSON.parse(saved);
-      // Fallback to system preference if no user setting
+      try {
+        const saved = localStorage.getItem('dark_mode');
+        if (saved) return JSON.parse(saved);
+      } catch (e) { console.error("Error reading dark mode", e); }
+      
       if (typeof window !== 'undefined' && window.matchMedia) {
           return window.matchMedia('(prefers-color-scheme: dark)').matches;
       }
@@ -52,8 +83,10 @@ function App() {
 
   // 5. Custom Fonts
   const [customFonts, setCustomFonts] = useState<CustomFont[]>(() => {
-    const saved = localStorage.getItem('custom_fonts');
-    return saved ? JSON.parse(saved) : [];
+    try {
+        const saved = localStorage.getItem('custom_fonts');
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) { return []; }
   });
 
   // Load Custom Fonts into DOM
@@ -404,24 +437,44 @@ function App() {
   }
 
   // --- SETTINGS UPDATES (ADMIN) ---
-  const handleTemplateUpdate = (newData: string, type: FanType) => {
-      if (type === 'cloth') {
-          setClothFanPath(newData);
-          localStorage.setItem('custom_fan_template', newData);
-      } else {
-          setPolymerFanImage(newData);
-          localStorage.setItem('custom_polymer_image', newData);
+  const handleTemplateUpdate = async (newData: string, type: FanType) => {
+      try {
+          if (type === 'cloth') {
+              // SVGs are text strings, usually safe to save directly
+              setClothFanPath(newData);
+              localStorage.setItem('custom_fan_template', newData);
+          } else {
+              // Polymer Images can be huge. Compress before saving.
+              // Max width 1024px is enough for editor background.
+              const compressed = await compressImage(newData, 1024);
+              setPolymerFanImage(compressed);
+              localStorage.setItem('custom_polymer_image', compressed);
+          }
+      } catch (e) {
+          console.error("Storage error:", e);
+          alert("Error: El archivo es demasiado grande para guardarse permanentemente. Intenta con uno más ligero.");
       }
   };
 
-  const handleLogoUpdate = (newLogo: string) => {
-      setLogoSrc(newLogo);
-      localStorage.setItem('custom_logo', newLogo);
+  const handleLogoUpdate = async (newLogo: string) => {
+      try {
+          // Compress logo to a small size (200px width is plenty for header)
+          const compressedLogo = await compressImage(newLogo, 200);
+          setLogoSrc(compressedLogo);
+          localStorage.setItem('custom_logo', compressedLogo);
+      } catch (e) {
+          console.error("Storage error:", e);
+          alert("Error: El logo es demasiado grande. Intenta subir una versión más pequeña.");
+      }
   };
 
   const handleUpdateFonts = (fonts: CustomFont[]) => {
-      setCustomFonts(fonts);
-      localStorage.setItem('custom_fonts', JSON.stringify(fonts));
+      try {
+        setCustomFonts(fonts);
+        localStorage.setItem('custom_fonts', JSON.stringify(fonts));
+      } catch (e) {
+        alert("Error: Las fuentes son demasiado pesadas para guardar. Intenta con menos fuentes.");
+      }
   };
 
   // --- ORDER FLOW ---
