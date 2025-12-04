@@ -1,0 +1,5 @@
+Coloca en esta carpeta los siguientes archivos:
+1. logo.png (El logo de tu negocio)
+2. canvapolimero.png (La plantilla base para el abanico de polímero)
+
+Estos archivos serán cargados automáticamente por la aplicación.
