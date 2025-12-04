@@ -32,9 +32,6 @@ const compressImage = (base64Str: string, maxWidth: number, quality: number = 0.
             const ctx = canvas.getContext('2d');
             ctx?.drawImage(img, 0, 0, width, height);
             
-            // Use JPEG for compression even if source was PNG, unless transparency is strictly needed for templates.
-            // For Polymer templates, we need transparency, so we stick to PNG but rely on resizing.
-            // For Logos, PNG is safer.
             resolve(canvas.toDataURL('image/png', quality));
         };
         img.onerror = () => resolve(base64Str); // Fallback
@@ -477,6 +474,64 @@ function App() {
       }
   };
 
+  // --- CONFIG EXPORT / IMPORT ---
+  const handleExportConfig = () => {
+      const config = {
+          custom_logo: logoSrc,
+          custom_fan_template: clothFanPath,
+          custom_polymer_image: polymerFanImage,
+          custom_fonts: customFonts,
+          admin_password: localStorage.getItem('admin_password') || 'Valeria.1'
+      };
+      
+      const blob = new Blob([JSON.stringify(config)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `config_abanicos_${Date.now()}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+
+  const handleImportConfig = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if(!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+          try {
+              const config = JSON.parse(event.target?.result as string);
+              
+              if(config.custom_logo) {
+                  setLogoSrc(config.custom_logo);
+                  localStorage.setItem('custom_logo', config.custom_logo);
+              }
+              if(config.custom_fan_template) {
+                  setClothFanPath(config.custom_fan_template);
+                  localStorage.setItem('custom_fan_template', config.custom_fan_template);
+              }
+              if(config.custom_polymer_image) {
+                  setPolymerFanImage(config.custom_polymer_image);
+                  localStorage.setItem('custom_polymer_image', config.custom_polymer_image);
+              }
+              if(config.custom_fonts) {
+                  setCustomFonts(config.custom_fonts);
+                  localStorage.setItem('custom_fonts', JSON.stringify(config.custom_fonts));
+              }
+              if(config.admin_password) {
+                  localStorage.setItem('admin_password', config.admin_password);
+              }
+              
+              alert("Configuración importada exitosamente. La página se recargará.");
+              window.location.reload();
+          } catch(err) {
+              alert("Error al importar el archivo de configuración.");
+          }
+      };
+      reader.readAsText(file);
+  };
+
   // --- ORDER FLOW ---
 
   const handleProceedToCheckout = () => {
@@ -557,6 +612,8 @@ function App() {
             onLogoUpdate={handleLogoUpdate}
             customFonts={customFonts}
             onUpdateFonts={handleUpdateFonts}
+            onExportConfig={handleExportConfig}
+            onImportConfig={handleImportConfig}
         />
       );
   }

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Order, FanType, CustomFont } from '../types';
-import { Download, Upload, AlertCircle, FileType, Layers, Box, Image as ImageIcon, Briefcase, Type, Lock, Trash2 } from 'lucide-react';
+import { Download, Upload, AlertCircle, FileType, Layers, Box, Image as ImageIcon, Briefcase, Type, Lock, Trash2, Save, FileJson } from 'lucide-react';
 
 interface AdminPanelProps {
   orders: Order[];
@@ -10,9 +10,20 @@ interface AdminPanelProps {
   onLogoUpdate: (data: string) => void;
   customFonts?: CustomFont[];
   onUpdateFonts?: (fonts: CustomFont[]) => void;
+  onExportConfig: () => void; // New
+  onImportConfig: (e: React.ChangeEvent<HTMLInputElement>) => void; // New
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ orders, onBack, onTemplateUpdate, onLogoUpdate, customFonts = [], onUpdateFonts }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ 
+    orders, 
+    onBack, 
+    onTemplateUpdate, 
+    onLogoUpdate, 
+    customFonts = [], 
+    onUpdateFonts,
+    onExportConfig,
+    onImportConfig
+}) => {
   const [activeTab, setActiveTab] = useState<'orders' | 'template' | 'settings' | 'fonts' | 'security'>('orders');
   const [targetTemplate, setTargetTemplate] = useState<FanType>('cloth'); 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -408,27 +419,63 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ orders, onBack, onTemplateUpdat
             )}
 
             {activeTab === 'security' && (
-                <div className="max-w-md mx-auto py-8 text-center">
-                     <div className="w-16 h-16 bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-300 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Lock size={32} />
+                <div className="max-w-2xl mx-auto py-8">
+                     <div className="text-center mb-8">
+                        <div className="w-16 h-16 bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-300 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Lock size={32} />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Seguridad y Respaldo</h3>
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Seguridad del Panel</h3>
-                    
-                    <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-xl border border-gray-200 dark:border-gray-600 text-left">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nueva Contraseña</label>
-                        <input 
-                            type="password"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded mb-4 dark:bg-gray-800 dark:text-white"
-                            placeholder="Mínimo 4 caracteres"
-                        />
-                        <button 
-                            onClick={handleChangePassword}
-                            className="w-full py-2 bg-gray-900 dark:bg-indigo-600 text-white rounded font-bold hover:bg-gray-800 dark:hover:bg-indigo-700"
-                        >
-                            Actualizar Contraseña
-                        </button>
+
+                    <div className="grid md:grid-cols-2 gap-6">
+                        {/* Password Change */}
+                        <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-xl border border-gray-200 dark:border-gray-600">
+                            <h4 className="font-bold text-gray-900 dark:text-white mb-4">Cambiar Contraseña</h4>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nueva Contraseña</label>
+                            <input 
+                                type="password"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded mb-4 dark:bg-gray-800 dark:text-white"
+                                placeholder="Mínimo 4 caracteres"
+                            />
+                            <button 
+                                onClick={handleChangePassword}
+                                className="w-full py-2 bg-gray-900 dark:bg-indigo-600 text-white rounded font-bold hover:bg-gray-800 dark:hover:bg-indigo-700"
+                            >
+                                Actualizar
+                            </button>
+                        </div>
+
+                        {/* Config Transfer */}
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
+                            <h4 className="font-bold text-blue-900 dark:text-blue-100 mb-4 flex items-center gap-2">
+                                <FileJson size={18} /> Transferir Configuración
+                            </h4>
+                            <p className="text-xs text-blue-700 dark:text-blue-300 mb-4">
+                                Como esta app no tiene servidor central, las configuraciones se guardan en el dispositivo. 
+                                Usa esto para copiar tu configuración (logo, plantillas) a tu celular.
+                            </p>
+                            
+                            <div className="space-y-3">
+                                <button 
+                                    onClick={onExportConfig}
+                                    className="w-full py-2 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-200 rounded font-bold hover:bg-blue-100 flex items-center justify-center gap-2"
+                                >
+                                    <Save size={16} /> Exportar Configuración
+                                </button>
+                                
+                                <label className="w-full py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 cursor-pointer flex items-center justify-center gap-2 shadow-sm">
+                                    <input 
+                                        type="file" 
+                                        accept=".json" 
+                                        className="hidden" 
+                                        onChange={onImportConfig}
+                                    />
+                                    <Upload size={16} /> Importar Configuración
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
