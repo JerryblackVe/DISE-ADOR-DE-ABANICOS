@@ -5,7 +5,7 @@ import Editor from './components/Editor';
 import OrderForm from './components/OrderForm';
 import AdminPanel from './components/AdminPanel';
 import { generatePattern } from './services/geminiService';
-import { Settings, ShoppingBag, Layers, Box, Download, Moon, Sun, Menu } from 'lucide-react';
+import { Settings, ShoppingBag, Layers, Box, Download, Moon, Sun, Edit3 } from 'lucide-react';
 import { DEFAULT_FAN_PATH, DEFAULT_POLYMER_IMAGE } from './constants';
 import { AppView, Order, FanType, CustomFont } from './types';
 
@@ -18,6 +18,9 @@ function App() {
   const [selectedObject, setSelectedObject] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [previewImage, setPreviewImage] = useState<string>('');
+  
+  // -- MOBILE UI STATE --
+  const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
   
   // -- PERSISTENT SETTINGS --
   
@@ -533,13 +536,16 @@ function App() {
       
       {/* 
          LAYOUT STRUCTURE:
-         Mobile: Header -> Canvas (Flex-1) -> Toolbar (Fixed Height Panel)
+         Mobile: Header -> Canvas (Flex-1) -> FAB / Sliding Toolbar
          Desktop: Toolbar (Left Sidebar) -> Header -> Canvas
       */}
 
-      {/* TOOLBAR WRAPPER */}
-      {/* Mobile: Order 3 (Bottom). Desktop: Order 1 (Left), Fixed width */}
-      <div className="order-3 md:order-1 z-30 shrink-0 w-full h-[40vh] md:w-80 md:h-full relative shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] md:shadow-xl">
+      {/* TOOLBAR WRAPPER - SLIDING DRAWER FOR MOBILE */}
+      <div className={`
+          fixed bottom-0 left-0 w-full h-[45vh] z-40 bg-white dark:bg-gray-800 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] rounded-t-2xl transition-transform duration-300 ease-out
+          md:relative md:translate-y-0 md:w-80 md:h-full md:order-1 md:shadow-xl md:rounded-none md:z-30
+          ${isMobileToolsOpen ? 'translate-y-0' : 'translate-y-[110%]'}
+      `}>
         <Toolbar 
             onAddText={handleAddText}
             onAddImage={handleAddImage}
@@ -560,7 +566,22 @@ function App() {
             ribColor={ribColor}
             onMatchRibColor={handleMatchRibColor}
             customFonts={customFonts}
+            onClose={() => setIsMobileToolsOpen(false)}
         />
+      </div>
+      
+      {/* MOBILE FAB TO OPEN TOOLS */}
+      <div className={`
+          md:hidden fixed bottom-6 right-6 z-30 transition-transform duration-300
+          ${isMobileToolsOpen ? 'translate-y-[200%]' : 'translate-y-0'}
+      `}>
+          <button 
+            onClick={() => setIsMobileToolsOpen(true)}
+            className="flex items-center justify-center w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 active:scale-95 transition-all"
+            title="Abrir Herramientas"
+          >
+             <Edit3 size={24} />
+          </button>
       </div>
 
       {/* MAIN CONTENT WRAPPER */}

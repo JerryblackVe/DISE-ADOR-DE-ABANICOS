@@ -5,7 +5,7 @@ import {
   Undo, Redo, Layers, PaintBucket,
   AlertCircle, Upload,
   ArrowUpFromLine, ArrowDownToLine,
-  Grid, Pipette, Zap, Minus
+  Grid, Pipette, Zap, Minus, ChevronDown
 } from 'lucide-react';
 import { AVAILABLE_FONTS, COMMON_COLORS, FLUO_COLORS } from '../constants';
 import { FanType, CustomFont } from '../types';
@@ -30,6 +30,7 @@ interface ToolbarProps {
   ribColor: string;
   onMatchRibColor: () => void;
   customFonts?: CustomFont[];
+  onClose?: () => void; // New prop for mobile drawer
 }
 
 // Internal component to enforce "Select -> Apply" workflow
@@ -97,7 +98,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onRibColorChange,
   ribColor,
   onMatchRibColor,
-  customFonts = []
+  customFonts = [],
+  onClose
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fontFileInputRef = useRef<HTMLInputElement>(null);
@@ -139,9 +141,14 @@ const Toolbar: React.FC<ToolbarProps> = ({
     // Responsive Container: Fills parent (40vh on mobile, full width/height on desktop)
     <div className="w-full h-full bg-white dark:bg-gray-800 border-t md:border-t-0 md:border-r border-gray-200 dark:border-gray-700 flex flex-col transition-colors rounded-t-2xl md:rounded-none shadow-up md:shadow-none">
       
-      {/* Mobile Handle (Visual indicator for bottom sheet) */}
-      <div className="flex md:hidden justify-center pt-3 pb-1 shrink-0 cursor-grab active:cursor-grabbing">
-          <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+      {/* Mobile Handle / Close Bar */}
+      <div 
+        className="flex md:hidden justify-between items-center px-4 pt-3 pb-1 shrink-0 cursor-pointer border-b border-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-t-2xl" 
+        onClick={onClose}
+      >
+          <div className="text-xs font-medium text-gray-400">Ocultar Panel</div>
+          <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto absolute left-1/2 transform -translate-x-1/2 top-3"></div>
+          <ChevronDown size={18} className="text-gray-400" />
       </div>
 
       {/* Header Section */}
