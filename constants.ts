@@ -8,7 +8,10 @@
 export const DEFAULT_FAN_PATH = "M -280 0 A 280 280 0 0 1 280 0 L 100 0 A 100 100 0 0 0 -100 0 Z";
 
 // Placeholder for Polymer Fan Image (User will upload their own)
-export const DEFAULT_POLYMER_IMAGE = "https://placehold.co/800x500/png?text=Abanico+Polimero+(Cargar+PNG)";
+export const DEFAULT_POLYMER_IMAGE = "/imagenes/ABANICO POLIMERO.png";
+
+// Default Logo Path
+export const DEFAULT_LOGO = "/imagenes/fantastic plastic logo.png";
 
 // Mock template data
 export const DEFAULT_TEMPLATE = {

@@ -6,7 +6,7 @@ import OrderForm from './components/OrderForm';
 import AdminPanel from './components/AdminPanel';
 import { generatePattern } from './services/geminiService';
 import { Settings, ShoppingBag, Layers, Box, Download, Moon, Sun, Edit3 } from 'lucide-react';
-import { DEFAULT_FAN_PATH, DEFAULT_POLYMER_IMAGE } from './constants';
+import { DEFAULT_FAN_PATH, DEFAULT_POLYMER_IMAGE, DEFAULT_LOGO } from './constants';
 import { AppView, Order, FanType, CustomFont } from './types';
 
 // Declare fabric
@@ -65,7 +65,7 @@ function App() {
 
   // 2. Custom Logo
   const [logoSrc, setLogoSrc] = useState<string>(() => {
-      return localStorage.getItem('custom_logo') || '/logo.png';
+      return localStorage.getItem('custom_logo') || DEFAULT_LOGO;
   });
 
   // 3. Cloth Template (SVG Path)
@@ -73,7 +73,7 @@ function App() {
     return localStorage.getItem('custom_fan_template') || DEFAULT_FAN_PATH;
   });
 
-  // 4. Polymer Template (PNG Data URL)
+  // 4. Polymer Template (PNG Data URL or Path)
   const [polymerFanImage, setPolymerFanImage] = useState<string>(() => {
     return localStorage.getItem('custom_polymer_image') || DEFAULT_POLYMER_IMAGE;
   });
