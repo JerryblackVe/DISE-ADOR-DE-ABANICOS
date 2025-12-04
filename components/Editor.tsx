@@ -30,6 +30,7 @@ const Editor: React.FC<EditorProps> = ({
   const fabricRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
+  const [isImageLoading, setIsImageLoading] = useState(false); // New loading state for polymer image
 
   // Helper to calculate fan geometry based on current canvas size
   const getFanGeometry = (canvasWidth: number, canvasHeight: number, pathData: string) => {
@@ -224,13 +225,19 @@ const Editor: React.FC<EditorProps> = ({
         canvas.bringToFront(outline);
 
     } else {
-        processPolymerImage(polymerImage, width, height, selectedColor, ribColor).then(({ baseImg, frameImg }) => {
-            if (!canvas) return;
-            canvas.add(baseImg);
-            canvas.sendToBack(baseImg);
-            canvas.add(frameImg);
-            canvas.requestRenderAll();
-        });
+        // Trigger loading state
+        setIsImageLoading(true);
+        processPolymerImage(polymerImage, width, height, selectedColor, ribColor)
+            .then(({ baseImg, frameImg }) => {
+                if (!canvas) return;
+                canvas.add(baseImg);
+                canvas.sendToBack(baseImg);
+                canvas.add(frameImg);
+                canvas.requestRenderAll();
+            })
+            .finally(() => {
+                setIsImageLoading(false);
+            });
     }
 
     canvas.on('object:added', (e: any) => {
@@ -362,15 +369,19 @@ const Editor: React.FC<EditorProps> = ({
       canvas.dispose();
       fabricRef.current = null;
     };
-  }, [fanPath, fanType, polymerImage]); // isDarkMode removed from dependency to avoid full re-init
+  }, [fanPath, fanType, polymerImage]); 
 
   useEffect(() => {
       if (!fabricRef.current || fanType !== 'polymer') return;
+      
+      setIsImageLoading(true); // START LOADING
+
       const canvas = fabricRef.current;
       const w = canvas.width;
       const h = canvas.height;
 
-      processPolymerImage(polymerImage, w, h, selectedColor, ribColor).then(({ baseImg, frameImg }) => {
+      processPolymerImage(polymerImage, w, h, selectedColor, ribColor)
+        .then(({ baseImg, frameImg }) => {
           const objects = canvas.getObjects();
           const oldBase = objects.find((o: any) => o.data?.id === 'fan-background');
           const oldFrame = objects.find((o: any) => o.data?.id === 'fan-outline');
@@ -397,9 +408,12 @@ const Editor: React.FC<EditorProps> = ({
           canvas.bringToFront(frameImg);
           
           canvas.requestRenderAll();
+      })
+      .finally(() => {
+          setIsImageLoading(false); // STOP LOADING
       });
 
-  }, [selectedColor, ribColor, fanType]);
+  }, [selectedColor, ribColor, fanType, polymerImage]);
 
   useEffect(() => {
     if (!fabricRef.current || fanType !== 'cloth') return;
@@ -419,7 +433,17 @@ const Editor: React.FC<EditorProps> = ({
         className="w-full h-full bg-white dark:bg-gray-700 shadow-xl rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 relative transition-colors"
       >
         <canvas ref={canvasRef} />
+        
+        {/* INITIAL LOADING STATE */}
         {!isReady && <div className="absolute inset-0 flex items-center justify-center text-gray-400">Cargando Editor...</div>}
+        
+        {/* POLYMER IMAGE LOADING OVERLAY */}
+        {isImageLoading && (
+           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-800/80 z-20 backdrop-blur-sm transition-opacity duration-300">
+               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-2"></div>
+               <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">Cargando plantilla...</span>
+           </div>
+        )}
       </div>
       
       {/* Badge moved to top-right on mobile to avoid overlap with thumb controls */}
