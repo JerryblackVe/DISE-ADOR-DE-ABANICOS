@@ -6,7 +6,7 @@ import OrderForm from './components/OrderForm';
 import AdminPanel from './components/AdminPanel';
 import { generatePattern } from './services/geminiService';
 import { Settings, ShoppingBag, Layers, Box, Download, Moon, Sun, Edit3 } from 'lucide-react';
-import { DEFAULT_FAN_PATH, DEFAULT_POLYMER_IMAGE, DEFAULT_LOGO, DEFAULT_CLOTH_SVG_URL } from './constants';
+import { DEFAULT_FAN_PATH, DEFAULT_POLYMER_IMAGE_URL, DEFAULT_LOGO, DEFAULT_CLOTH_SVG_URL } from './constants';
 import { AppView, Order, FanType, CustomFont } from './types';
 
 // Declare fabric
@@ -73,9 +73,9 @@ function App() {
     return localStorage.getItem('custom_fan_template') || DEFAULT_FAN_PATH;
   });
 
-  // 4. Polymer Template (PNG Data URL or Path)
+  // 4. Polymer Template (PNG Image) - Reverted to Image
   const [polymerFanImage, setPolymerFanImage] = useState<string>(() => {
-    return localStorage.getItem('custom_polymer_image') || DEFAULT_POLYMER_IMAGE;
+    return localStorage.getItem('custom_polymer_image') || '';
   });
 
   // 5. Custom Fonts
@@ -86,45 +86,48 @@ function App() {
     } catch (e) { return []; }
   });
 
-  // INITIALIZATION: Fetch Default Cloth SVG from GitHub/CDN
+  // INITIALIZATION: Fetch Default Cloth SVG & Polymer PNG from GitHub/CDN
   useEffect(() => {
+    // 1. Cloth
     const savedTemplate = localStorage.getItem('custom_fan_template');
+    // If it's the old simple path or missing, update it
+    const isOldDefault = savedTemplate && savedTemplate.startsWith("M -280");
     
-    // We force an update if:
-    // 1. There is NO saved template.
-    // 2. OR the saved template is identical to the OLD hardcoded path (DEFAULT_FAN_PATH), meaning we need to upgrade it.
-    const shouldFetch = !savedTemplate || savedTemplate === DEFAULT_FAN_PATH;
-
-    if (shouldFetch) {
-        console.log("Fetching updated default SVG from:", DEFAULT_CLOTH_SVG_URL);
-        fetch(DEFAULT_CLOTH_SVG_URL)
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return response.text();
-            })
+    if (!savedTemplate || isOldDefault) {
+        console.log("Fetching updated Cloth SVG...");
+        fetch(`${DEFAULT_CLOTH_SVG_URL}?t=${Date.now()}`)
+            .then(res => res.text())
             .then(svgText => {
-                // Validate it's an SVG
-                if (!svgText.includes('<svg') && !svgText.includes('<path')) {
-                     throw new Error('Invalid SVG content');
-                }
-
+                if (!svgText.includes('<svg') && !svgText.includes('<path')) return;
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(svgText, "image/svg+xml");
                 const pathElement = doc.querySelector('path');
                 const pathData = pathElement?.getAttribute('d');
-                
                 if (pathData) {
-                    console.log("SVG Template updated successfully.");
                     setClothFanPath(pathData);
-                    localStorage.setItem('custom_fan_template', pathData); // Persist the new one
-                } else {
-                    console.warn("No path found in fetched SVG, keeping fallback.");
+                    localStorage.setItem('custom_fan_template', pathData);
                 }
             })
-            .catch(error => {
-                console.error("Error fetching default cloth SVG:", error);
-                // Fallback remains in state
-            });
+            .catch(e => console.error("Error fetching cloth SVG:", e));
+    }
+
+    // 2. Polymer (PNG)
+    const savedPolymer = localStorage.getItem('custom_polymer_image');
+    if (!savedPolymer) {
+        console.log("Fetching updated Polymer PNG...");
+        // Fetch as blob -> convert to base64
+        fetch(`${DEFAULT_POLYMER_IMAGE_URL}?t=${Date.now()}`)
+            .then(res => res.blob())
+            .then(blob => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64data = reader.result as string;
+                    setPolymerFanImage(base64data);
+                    localStorage.setItem('custom_polymer_image', base64data);
+                }
+                reader.readAsDataURL(blob);
+            })
+            .catch(e => console.error("Error fetching polymer PNG:", e));
     }
   }, []);
 
@@ -479,19 +482,17 @@ function App() {
   const handleTemplateUpdate = async (newData: string, type: FanType) => {
       try {
           if (type === 'cloth') {
-              // SVGs are text strings, usually safe to save directly
               setClothFanPath(newData);
               localStorage.setItem('custom_fan_template', newData);
           } else {
-              // Polymer Images can be huge. Compress before saving.
-              // Max width 1024px is enough for editor background.
+              // Polymer uses Image Base64
               const compressed = await compressImage(newData, 1024);
               setPolymerFanImage(compressed);
               localStorage.setItem('custom_polymer_image', compressed);
           }
       } catch (e) {
           console.error("Storage error:", e);
-          alert("Error: El archivo es demasiado grande para guardarse permanentemente. Intenta con uno más ligero.");
+          alert("Error al guardar la plantilla.");
       }
   };
 
@@ -521,7 +522,7 @@ function App() {
       const config = {
           custom_logo: logoSrc,
           custom_fan_template: clothFanPath,
-          custom_polymer_image: polymerFanImage,
+          custom_polymer_image: polymerFanImage, // Updated key
           custom_fonts: customFonts,
           admin_password: localStorage.getItem('admin_password') || 'Valeria.1'
       };
@@ -846,7 +847,7 @@ function App() {
                 onSelectionChange={setSelectedObject}
                 selectedColor={selectedColor}
                 fanPath={clothFanPath}
-                polymerImage={polymerFanImage}
+                polymerImage={polymerFanImage} // Passed Image base64 or URL
                 fanType={fanType}
                 ribColor={ribColor}
                 isDarkMode={isDarkMode}

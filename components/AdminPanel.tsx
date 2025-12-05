@@ -10,8 +10,8 @@ interface AdminPanelProps {
   onLogoUpdate: (data: string) => void;
   customFonts?: CustomFont[];
   onUpdateFonts?: (fonts: CustomFont[]) => void;
-  onExportConfig: () => void; // New
-  onImportConfig: (e: React.ChangeEvent<HTMLInputElement>) => void; // New
+  onExportConfig: () => void; 
+  onImportConfig: (e: React.ChangeEvent<HTMLInputElement>) => void; 
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
@@ -111,10 +111,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 setErrorMsg(null);
                 alert(`Plantilla de POLÍMERO actualizada correctamente.`);
             } else {
-                setErrorMsg('Error al leer la imagen.');
+                setErrorMsg('Error al leer el archivo PNG.');
             }
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(file); 
     }
   };
 
@@ -319,7 +319,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <Box size={20} className="mr-2" />
                         <div className="text-left">
                             <div className="font-bold text-sm">Abanico Polímero</div>
-                            <div className="text-[10px] opacity-70">Requiere imagen PNG</div>
+                            <div className="text-[10px] opacity-70">Requiere archivo PNG</div>
                         </div>
                     </button>
                 </div>
@@ -340,7 +340,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     />
                     <span className="flex items-center gap-2 font-medium">
                         <Upload size={20} /> 
-                        Subir {targetTemplate === 'cloth' ? 'SVG' : 'PNG'}
+                        {targetTemplate === 'cloth' ? "Subir SVG" : "Subir PNG"}
                     </span>
                     </label>
                 </div>
@@ -374,6 +374,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
             )}
 
+            {/* Other tabs omitted for brevity but remain unchanged */}
             {activeTab === 'fonts' && (
                 <div className="max-w-xl mx-auto py-8">
                     <div className="text-center mb-8">

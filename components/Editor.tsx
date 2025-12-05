@@ -10,9 +10,9 @@ interface EditorProps {
   onSelectionChange: (obj: any) => void;
   selectedColor: string; // Blade/Background Color
   fanPath: string; // The active SVG path data (For Cloth)
-  polymerImage: string; // The active PNG Image data (For Polymer)
+  polymerImage: string; // The active PNG Image (For Polymer)
   fanType: FanType;
-  ribColor: string; // New prop for polymer frame/ribs
+  ribColor: string; // Frame/Ribs Color (Polymer)
   isDarkMode: boolean;
 }
 
@@ -30,7 +30,7 @@ const Editor: React.FC<EditorProps> = ({
   const fabricRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
-  const [isImageLoading, setIsImageLoading] = useState(false); // New loading state for polymer image
+  const [isImageLoading, setIsImageLoading] = useState(false);
 
   // Helper to calculate fan geometry based on current canvas size
   const getFanGeometry = (canvasWidth: number, canvasHeight: number, pathData: string) => {
@@ -38,9 +38,9 @@ const Editor: React.FC<EditorProps> = ({
     const pathWidth = tempPath.width || 560;
     const pathHeight = tempPath.height || 280;
 
-    // Maximized scale factor to 0.95 to fill almost all space
-    const scaleX = (canvasWidth * 0.95) / pathWidth;
-    const scaleY = (canvasHeight * 0.95) / pathHeight;
+    // Scale 0.9 for Cloth (Vectors)
+    const scaleX = (canvasWidth * 0.9) / pathWidth;
+    const scaleY = (canvasHeight * 0.9) / pathHeight;
     const scale = Math.min(scaleX, scaleY);
 
     const left = canvasWidth / 2;
@@ -50,108 +50,91 @@ const Editor: React.FC<EditorProps> = ({
     return { scale, left, top };
   };
 
-  const processPolymerImage = async (imgUrl: string, width: number, height: number, colorBase: string, colorFrame: string) => {
-      return new Promise<{ baseImg: any, frameImg: any, clipPath: any }>((resolve) => {
-          const img = new Image();
-          img.crossOrigin = "Anonymous";
-          img.src = imgUrl;
-          img.onload = () => {
-              const canvas = document.createElement('canvas');
-              canvas.width = img.width;
-              canvas.height = img.height;
-              const ctx = canvas.getContext('2d');
-              if (!ctx) return;
-
-              ctx.drawImage(img, 0, 0);
-              const imageData = ctx.getImageData(0, 0, img.width, img.height);
-              const data = imageData.data;
-
-              const baseData = ctx.createImageData(img.width, img.height);
-              const frameData = ctx.createImageData(img.width, img.height);
-              const maskData = ctx.createImageData(img.width, img.height);
-
-              const hexToRgb = (hex: string) => {
-                  const r = parseInt(hex.slice(1, 3), 16);
-                  const g = parseInt(hex.slice(3, 5), 16);
-                  const b = parseInt(hex.slice(5, 7), 16);
-                  return { r, g, b };
-              }
-              const rgbBase = hexToRgb(colorBase);
-              const rgbFrame = hexToRgb(colorFrame);
-
-              for (let i = 0; i < data.length; i += 4) {
-                  const r = data[i];
-                  const g = data[i + 1];
-                  const b = data[i + 2];
-                  const a = data[i + 3];
-
-                  if (a < 50) continue; 
-
-                  if (r > 100 && r > g * 1.5 && r > b * 1.5) {
-                      frameData.data[i] = rgbFrame.r;
-                      frameData.data[i + 1] = rgbFrame.g;
-                      frameData.data[i + 2] = rgbFrame.b;
-                      frameData.data[i + 3] = a; 
-                  }
-                  else if (r > 100 && g > 100 && b < 100) {
-                      baseData.data[i] = rgbBase.r;
-                      baseData.data[i + 1] = rgbBase.g;
-                      baseData.data[i + 2] = rgbBase.b;
-                      baseData.data[i + 3] = a;
-                      maskData.data[i] = 0;
-                      maskData.data[i+1] = 0;
-                      maskData.data[i+2] = 0;
-                      maskData.data[i+3] = 255;
-                  }
-              }
-
-              const dataToImage = (imgData: ImageData) => {
-                  const tmpCanvas = document.createElement('canvas');
-                  tmpCanvas.width = img.width;
-                  tmpCanvas.height = img.height;
-                  tmpCanvas.getContext('2d')?.putImageData(imgData, 0, 0);
-                  return tmpCanvas.toDataURL();
-              }
-
-              const baseSrc = dataToImage(baseData);
-              const frameSrc = dataToImage(frameData);
-              
-              // Maximized scale factor to 0.95
-              const scaleX = (width * 0.95) / img.width;
-              const scaleY = (height * 0.95) / img.height;
-              const scale = Math.min(scaleX, scaleY);
-              const centerOpts = {
-                 originX: 'center',
-                 originY: 'center',
-                 left: width / 2,
-                 top: height / 2,
-                 scaleX: scale,
-                 scaleY: scale,
-                 selectable: false,
-                 evented: false,
-              };
-
-              fabric.Image.fromURL(baseSrc, (bImg: any) => {
-                  bImg.set({...centerOpts, data: { id: 'fan-background' }});
-                  fabric.Image.fromURL(frameSrc, (fImg: any) => {
-                      fImg.set({...centerOpts, data: { id: 'fan-outline' }});
-                      resolve({ baseImg: bImg, frameImg: fImg, clipPath: null });
-                  });
-              });
-          };
-      });
-  };
-
   // --- Theme Change Effect ---
   useEffect(() => {
     if (fabricRef.current) {
         // Switch canvas background color based on theme
-        const bgColor = isDarkMode ? '#374151' : '#f3f4f6'; // dark:bg-gray-700 vs bg-gray-100
+        const bgColor = isDarkMode ? '#374151' : '#f3f4f6'; 
         fabricRef.current.setBackgroundColor(bgColor, () => {
             fabricRef.current.requestRenderAll();
         });
     }
   }, [isDarkMode]);
+
+  // Function to process PNG pixels and split into Frame (Red) and Background (Yellow)
+  const processPolymerImage = (base64Img: string): Promise<{ frameImg: any, bgImg: any }> => {
+      return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.src = base64Img;
+          img.onload = () => {
+              // Use natural dimensions to ensure pixel accuracy
+              const w = img.naturalWidth || img.width;
+              const h = img.naturalHeight || img.height;
+
+              const canvas = document.createElement('canvas');
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext('2d');
+              if(!ctx) {
+                  reject("No context");
+                  return;
+              }
+              
+              ctx.drawImage(img, 0, 0);
+              const imgData = ctx.getImageData(0, 0, w, h);
+              const totalPixels = imgData.data.length;
+
+              // Buffer for Frame (Red parts)
+              const frameData = new Uint8ClampedArray(totalPixels);
+              // Buffer for Background (Yellow parts)
+              const bgData = new Uint8ClampedArray(totalPixels);
+
+              for(let i=0; i < totalPixels; i+=4) {
+                  const r = imgData.data[i];
+                  const g = imgData.data[i+1];
+                  const b = imgData.data[i+2];
+                  const a = imgData.data[i+3];
+
+                  if (a < 50) continue; // Skip transparent pixels
+
+                  // ROBUST LOGIC:
+                  // Instead of checking specific yellow, we check if it's RED.
+                  // If it's RED -> Frame.
+                  // If it's NOT RED (and visible) -> Background.
+                  
+                  // Red detection: Red is significantly higher than Green and Blue
+                  const isRed = (r > g + 20) && (r > b + 20);
+
+                  if (isRed) {
+                      // Copy to Frame buffer
+                      frameData[i] = r; frameData[i+1] = g; frameData[i+2] = b; frameData[i+3] = a;
+                  } else {
+                      // Catch-all for everything else (Yellow, borders, shadows) -> Background
+                      bgData[i] = r; bgData[i+1] = g; bgData[i+2] = b; bgData[i+3] = a;
+                  }
+              }
+
+              // Create fabric Images from buffers
+              const createFabImg = (data: Uint8ClampedArray) => {
+                   const c = document.createElement('canvas');
+                   c.width = w;
+                   c.height = h;
+                   c.getContext('2d')?.putImageData(new ImageData(data, w, h), 0, 0);
+                   return new fabric.Image(c);
+              };
+
+              const frameObj = createFabImg(frameData);
+              const bgObj = createFabImg(bgData);
+
+              resolve({ frameImg: frameObj, bgImg: bgObj });
+          }
+          img.onerror = () => {
+              setIsImageLoading(false); 
+              reject("Error loading image");
+          }
+      });
+  };
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
@@ -225,19 +208,84 @@ const Editor: React.FC<EditorProps> = ({
         canvas.bringToFront(outline);
 
     } else {
-        // Trigger loading state
+        // --- POLYMER PNG LOGIC ---
+        if (!polymerImage) return;
+
         setIsImageLoading(true);
-        processPolymerImage(polymerImage, width, height, selectedColor, ribColor)
-            .then(({ baseImg, frameImg }) => {
-                if (!canvas) return;
-                canvas.add(baseImg);
-                canvas.sendToBack(baseImg);
-                canvas.add(frameImg);
-                canvas.requestRenderAll();
-            })
-            .finally(() => {
-                setIsImageLoading(false);
+
+        processPolymerImage(polymerImage).then(({ frameImg, bgImg }) => {
+            if (!fabricRef.current) return; // Guard if unmounted
+            
+            // Get CURRENT canvas dimensions (Logical)
+            const currentW = canvas.getWidth();
+            const currentH = canvas.getHeight();
+            const centerX = currentW / 2;
+            const centerY = currentH / 2;
+            
+            // Calculate scale to fit (0.75 for Safety Margin)
+            const imgW = frameImg.width || 100;
+            const imgH = frameImg.height || 100;
+            
+            const scaleX = (currentW * 0.75) / imgW;
+            const scaleY = (currentH * 0.75) / imgH;
+            const scale = Math.min(scaleX, scaleY);
+
+            // Configure Background (The Yellow part)
+            bgImg.set({
+                originX: 'center',
+                originY: 'center',
+                scaleX: scale,
+                scaleY: scale,
+                selectable: false,
+                evented: false,
+                data: { id: 'fan-background' }
             });
+            
+            // Apply initial color to background
+            const bgBlend = new fabric.Image.filters.BlendColor({
+                color: selectedColor,
+                mode: 'tint',
+                alpha: 1
+            });
+            const grayscale = new fabric.Image.filters.Grayscale();
+            bgImg.filters = [grayscale, bgBlend];
+            bgImg.applyFilters();
+            
+            canvas.add(bgImg);
+            canvas.centerObject(bgImg); // Native centering
+            canvas.sendToBack(bgImg);
+
+            // Configure Frame (The Red part)
+            frameImg.set({
+                originX: 'center',
+                originY: 'center',
+                scaleX: scale,
+                scaleY: scale,
+                selectable: false,
+                evented: false,
+                data: { id: 'fan-outline' }
+            });
+
+            // Apply initial color to frame
+            const frameBlend = new fabric.Image.filters.BlendColor({
+                color: ribColor,
+                mode: 'tint',
+                alpha: 1
+            });
+            frameImg.filters = [grayscale, frameBlend];
+            frameImg.applyFilters();
+
+            canvas.add(frameImg);
+            canvas.centerObject(frameImg); // Native centering
+            canvas.bringToFront(frameImg);
+            
+            setIsImageLoading(false);
+            canvas.requestRenderAll();
+            
+        }).catch(e => {
+            console.error(e);
+            setIsImageLoading(false);
+        });
     }
 
     canvas.on('object:added', (e: any) => {
@@ -275,79 +323,74 @@ const Editor: React.FC<EditorProps> = ({
         const canvas = fabricRef.current;
         
         let refObj = canvas.getObjects().find((o: any) => o.data?.id === 'fan-outline');
-        if (fanType === 'polymer') {
-            refObj = canvas.getObjects().find((o: any) => o.data?.id === 'fan-background');
-        }
+        if (!refObj) refObj = canvas.getObjects().find((o: any) => o.data?.id === 'fan-background');
+        
+        canvas.setWidth(newW);
+        canvas.setHeight(newH);
         
         if (!refObj) {
-            canvas.setWidth(newW);
-            canvas.setHeight(newH);
             canvas.requestRenderAll();
             return;
         }
 
-        const oldLeft = refObj.left!;
-        const oldTop = refObj.top!;
         const oldScale = refObj.scaleX!; 
-
         let newScale = 1;
-        let newLeft = newW / 2;
-        let newTop = newH / 2;
 
         if (fanType === 'cloth') {
             const geo = getFanGeometry(newW, newH, fanPath);
             newScale = geo.scale;
-            newLeft = geo.left;
-            newTop = geo.top;
+            
+            // Re-apply to all objects
+            canvas.getObjects().forEach((obj: any) => {
+                // Background & Outline handled by Geometry
+                if (obj.data?.id === 'fan-background') {
+                     obj.set({ width: newW, height: newH });
+                     if (obj.clipPath) {
+                         obj.clipPath.set({ left: geo.left, top: geo.top, scaleX: geo.scale, scaleY: geo.scale });
+                         obj.clipPath.setCoords();
+                     }
+                     return;
+                }
+                if (obj.data?.id === 'fan-outline') {
+                    obj.set({ left: geo.left, top: geo.top, scaleX: geo.scale, scaleY: geo.scale });
+                    obj.setCoords();
+                    return;
+                }
+                
+                // For user content
+                const sFactor = newScale / oldScale;
+                // Simple centering adjustment relative to center delta? 
+                // A full world transform is complex, usually easiest to just center fan and let user move items.
+                // But let's try to maintain relative position to CENTER.
+                
+                // For this request, simply recentering the fan is priority.
+                if (obj.clipPath) {
+                    obj.clipPath.set({ left: geo.left, top: geo.top, scaleX: geo.scale, scaleY: geo.scale });
+                    obj.clipPath.setCoords();
+                }
+            });
+
         } else {
-             // Maximized scale factor to 0.95
-             const scaleX = (newW * 0.95) / refObj.width!;
-             const scaleY = (newH * 0.95) / refObj.height!;
+             // Polymer (Image) resizing
+             const imgW = refObj.width!;
+             const imgH = refObj.height!;
+             const scaleX = (newW * 0.75) / imgW;
+             const scaleY = (newH * 0.75) / imgH;
              newScale = Math.min(scaleX, scaleY);
-             newLeft = newW / 2;
-             newTop = newH / 2;
-        }
-
-        const sFactor = newScale / oldScale;
-
-        canvas.setWidth(newW);
-        canvas.setHeight(newH);
-
-        canvas.getObjects().forEach((obj: any) => {
-             if (obj.data?.id === 'fan-background' && obj.type === 'rect') {
-                 obj.set({ width: newW, height: newH });
-                 if (obj.clipPath) {
-                     const cp = obj.clipPath;
-                     cp.set({
-                        left: newLeft,
-                        top: newTop,
-                        scaleX: newScale,
-                        scaleY: newScale
-                     });
-                     cp.setCoords();
+             
+             canvas.getObjects().forEach((obj: any) => {
+                 if (obj.data?.id === 'fan-background' || obj.data?.id === 'fan-outline') {
+                     obj.set({ scaleX: newScale, scaleY: newScale });
+                     canvas.centerObject(obj);
+                     obj.setCoords();
                  }
-                 return;
-             }
-             
-             const relX = obj.left! - oldLeft;
-             const relY = obj.top! - oldTop;
-             
-             obj.set({
-                 left: newLeft + relX * sFactor,
-                 top: newTop + relY * sFactor,
-                 scaleX: obj.scaleX! * sFactor,
-                 scaleY: obj.scaleY! * sFactor
              });
-             obj.setCoords();
-        });
+        }
 
         canvas.requestRenderAll();
     };
 
-    // Use ResizeObserver for more robust container resizing detection
     const resizeObserver = new ResizeObserver((entries) => {
-        // Fix for "ResizeObserver loop completed with undelivered notifications"
-        // We wrap the resize logic in requestAnimationFrame to decouple it from the current paint cycle
         window.requestAnimationFrame(() => {
             if (!Array.isArray(entries) || !entries.length) return;
             handleResize();
@@ -359,7 +402,7 @@ const Editor: React.FC<EditorProps> = ({
     }
 
     // Initial resize trigger
-    setTimeout(() => handleResize(), 100);
+    setTimeout(() => handleResize(), 200);
 
     onCanvasReady(canvas);
     setIsReady(true);
@@ -371,83 +414,66 @@ const Editor: React.FC<EditorProps> = ({
     };
   }, [fanPath, fanType, polymerImage]); 
 
+  // Update Polymer Rib Colors (Frame)
   useEffect(() => {
       if (!fabricRef.current || fanType !== 'polymer') return;
-      
-      setIsImageLoading(true); // START LOADING
-
       const canvas = fabricRef.current;
-      const w = canvas.width;
-      const h = canvas.height;
-
-      processPolymerImage(polymerImage, w, h, selectedColor, ribColor)
-        .then(({ baseImg, frameImg }) => {
-          const objects = canvas.getObjects();
-          const oldBase = objects.find((o: any) => o.data?.id === 'fan-background');
-          const oldFrame = objects.find((o: any) => o.data?.id === 'fan-outline');
-          
-          let currentTransform = null;
-          if (oldBase) {
-              currentTransform = {
-                  left: oldBase.left,
-                  top: oldBase.top,
-                  scaleX: oldBase.scaleX,
-                  scaleY: oldBase.scaleY
-              };
-              canvas.remove(oldBase);
-          }
-          if (oldFrame) canvas.remove(oldFrame);
-
-          if(currentTransform) {
-              baseImg.set(currentTransform);
-              frameImg.set(currentTransform);
-          }
-
-          canvas.insertAt(baseImg, 0, false);
-          canvas.add(frameImg);
-          canvas.bringToFront(frameImg);
-          
+      const frame = canvas.getObjects().find((o: any) => o.data?.id === 'fan-outline');
+      
+      if (frame) {
+          const grayscale = new fabric.Image.filters.Grayscale();
+          const blend = new fabric.Image.filters.BlendColor({
+              color: ribColor,
+              mode: 'tint',
+              alpha: 1
+          });
+          frame.filters = [grayscale, blend];
+          frame.applyFilters();
           canvas.requestRenderAll();
-      })
-      .finally(() => {
-          setIsImageLoading(false); // STOP LOADING
-      });
+      }
+  }, [ribColor, fanType]);
 
-  }, [selectedColor, ribColor, fanType, polymerImage]);
-
+  // Update Background Colors (Cloth & Polymer)
   useEffect(() => {
-    if (!fabricRef.current || fanType !== 'cloth') return;
+    if (!fabricRef.current) return;
     const canvas = fabricRef.current;
     const bg = canvas.getObjects().find((o: any) => o.data?.id === 'fan-background');
     if (bg) {
-      bg.set('fill', selectedColor);
+        if (fanType === 'cloth') {
+             bg.set('fill', selectedColor);
+        } else {
+             // Polymer Background Image
+             const grayscale = new fabric.Image.filters.Grayscale();
+             const blend = new fabric.Image.filters.BlendColor({
+                color: selectedColor,
+                mode: 'tint',
+                alpha: 1
+            });
+            bg.filters = [grayscale, blend];
+            bg.applyFilters();
+        }
       canvas.requestRenderAll();
     }
   }, [selectedColor, fanType]);
 
   return (
-    // Force full width/height on editor container
     <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center relative p-1 md:p-2 transition-colors">
       <div 
         ref={containerRef} 
         className="w-full h-full bg-white dark:bg-gray-700 shadow-xl rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 relative transition-colors"
       >
         <canvas ref={canvasRef} />
-        
-        {/* INITIAL LOADING STATE */}
-        {!isReady && <div className="absolute inset-0 flex items-center justify-center text-gray-400">Cargando Editor...</div>}
-        
-        {/* POLYMER IMAGE LOADING OVERLAY */}
-        {isImageLoading && (
-           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-800/80 z-20 backdrop-blur-sm transition-opacity duration-300">
-               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-2"></div>
-               <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">Cargando plantilla...</span>
-           </div>
+        {(!isReady || isImageLoading) && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-800/80 z-20 backdrop-blur-sm">
+                <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                <div className="text-gray-600 dark:text-gray-300 font-medium">
+                    {isImageLoading ? 'Cargando plantilla...' : 'Cargando Editor...'}
+                </div>
+            </div>
         )}
       </div>
       
-      {/* Badge moved to top-right on mobile to avoid overlap with thumb controls */}
-      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 md:bottom-4 bg-black/70 dark:bg-black/90 text-white px-3 py-1 md:px-4 md:py-2 rounded-full text-[10px] md:text-xs backdrop-blur-sm pointer-events-none z-10 whitespace-nowrap">
+      <div className="absolute top-2 right-2 md:top-auto md:right-auto md:bottom-4 md:left-1/2 md:transform md:-translate-x-1/2 bg-black/70 dark:bg-black/90 text-white px-3 py-1 md:px-4 md:py-2 rounded-full text-[10px] md:text-xs backdrop-blur-sm pointer-events-none z-10 whitespace-nowrap">
         Área de Impresión (23cm)
       </div>
     </div>
