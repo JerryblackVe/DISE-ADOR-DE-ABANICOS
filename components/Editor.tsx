@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { FanType } from '../types';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
@@ -24,7 +23,7 @@ const Editor: React.FC<EditorProps> = ({
   fanPath, 
   polymerImage,
   fanType, 
-  ribColor,
+  ribColor, 
   isDarkMode
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);

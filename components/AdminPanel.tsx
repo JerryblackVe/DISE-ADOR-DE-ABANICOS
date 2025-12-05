@@ -29,7 +29,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     onUpdateModes
 }) => {
   const [activeTab, setActiveTab] = useState<'orders' | 'template' | 'settings' | 'fonts' | 'security'>('orders');
-  const [targetTemplate, setTargetTemplate] = useState<FanType>('cloth'); 
+  // CHANGE: Default to 'polymer'
+  const [targetTemplate, setTargetTemplate] = useState<FanType>('polymer'); 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // -- SECURITY --
@@ -305,17 +306,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </p>
                 
                 <div className="flex justify-center space-x-4 mb-8">
-                    <button 
-                        onClick={() => setTargetTemplate('cloth')}
-                        className={`flex items-center px-4 py-3 rounded-lg border transition-all ${targetTemplate === 'cloth' ? 'bg-indigo-50 dark:bg-indigo-900 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-200 dark:ring-indigo-700' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}`}
-                    >
-                        <Layers size={20} className="mr-2" />
-                        <div className="text-left">
-                            <div className="font-bold text-sm">Abanico de Tela</div>
-                            <div className="text-[10px] opacity-70">Requiere archivo SVG</div>
-                        </div>
-                    </button>
-
+                    {/* REORDERED: POLYMER FIRST */}
                     <button 
                          onClick={() => setTargetTemplate('polymer')}
                          className={`flex items-center px-4 py-3 rounded-lg border transition-all ${targetTemplate === 'polymer' ? 'bg-indigo-50 dark:bg-indigo-900 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-200 dark:ring-indigo-700' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}`}
@@ -324,6 +315,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <div className="text-left">
                             <div className="font-bold text-sm">Abanico Polímero</div>
                             <div className="text-[10px] opacity-70">Requiere archivo PNG</div>
+                        </div>
+                    </button>
+
+                    <button 
+                        onClick={() => setTargetTemplate('cloth')}
+                        className={`flex items-center px-4 py-3 rounded-lg border transition-all ${targetTemplate === 'cloth' ? 'bg-indigo-50 dark:bg-indigo-900 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-200 dark:ring-indigo-700' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}`}
+                    >
+                        <Layers size={20} className="mr-2" />
+                        <div className="text-left">
+                            <div className="font-bold text-sm">Abanico de Tela</div>
+                            <div className="text-[10px] opacity-70">Requiere archivo SVG</div>
                         </div>
                     </button>
                 </div>

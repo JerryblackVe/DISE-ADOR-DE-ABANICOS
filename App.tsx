@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import Toolbar from './components/Toolbar';
 import Editor from './components/Editor';
@@ -6,7 +5,7 @@ import OrderForm from './components/OrderForm';
 import AdminPanel from './components/AdminPanel';
 import { generatePattern } from './services/geminiService';
 import { Settings, ShoppingBag, Layers, Box, Download, Moon, Sun, Edit3, Check } from 'lucide-react';
-import { DEFAULT_FAN_PATH, POLYMER_MODELS, DEFAULT_LOGO, DEFAULT_CLOTH_SVG_URL, SOCIAL_WHATSAPP_ICON, SOCIAL_INSTAGRAM_ICON } from './constants';
+import { DEFAULT_FAN_PATH, POLYMER_MODELS, DEFAULT_LOGO, DEFAULT_CLOTH_SVG_URL, SOCIAL_WHATSAPP_ICON, SOCIAL_INSTAGRAM_ICON, GLOBAL_CONFIG } from './constants';
 import { AppView, Order, FanType, CustomFont } from './types';
 import HelpTooltip from './components/HelpTooltip';
 
@@ -64,9 +63,9 @@ function App() {
       return false;
   });
 
-  // 2. Custom Logo
+  // 2. Custom Logo (Prioritize LocalStorage, Fallback to GLOBAL_CONFIG)
   const [logoSrc, setLogoSrc] = useState<string>(() => {
-      return localStorage.getItem('custom_logo') || DEFAULT_LOGO;
+      return localStorage.getItem('custom_logo') || GLOBAL_CONFIG.defaultLogo;
   });
 
   // 3. Cloth Template (SVG Path)
@@ -88,12 +87,12 @@ function App() {
     } catch (e) { return []; }
   });
 
-  // 6. Enabled Modes (Persistent)
+  // 6. Enabled Modes (Persistent - Prioritize LocalStorage, Fallback to GLOBAL_CONFIG)
   const [enabledModes, setEnabledModes] = useState<{cloth: boolean, polymer: boolean}>(() => {
       try {
           const saved = localStorage.getItem('enabled_modes');
-          return saved ? JSON.parse(saved) : { cloth: true, polymer: true };
-      } catch(e) { return { cloth: true, polymer: true }; }
+          return saved ? JSON.parse(saved) : GLOBAL_CONFIG.enabledModes;
+      } catch(e) { return GLOBAL_CONFIG.enabledModes; }
   });
 
   useEffect(() => {
@@ -176,20 +175,28 @@ function App() {
   }, [isDarkMode]);
   
   // -- MODE STATE --
-  const [fanType, setFanType] = useState<FanType>('cloth');
+  // CHANGE: Default to 'polymer' as requested
+  const [fanType, setFanType] = useState<FanType>('polymer');
 
   // Enforce enabled modes logic
   useEffect(() => {
+      // If current mode is disabled, switch to the other one
       if (fanType === 'cloth' && !enabledModes.cloth) {
-          setFanType('polymer');
+          if (enabledModes.polymer) setFanType('polymer');
       } else if (fanType === 'polymer' && !enabledModes.polymer) {
-          setFanType('cloth');
+          if (enabledModes.cloth) setFanType('cloth');
       }
-  }, [enabledModes]);
+      
+      // If both disabled (edge case), default to cloth but UI will hide it
+      if (!enabledModes.cloth && !enabledModes.polymer) {
+         // Should ideally show a message or maintenance mode
+      }
+  }, [enabledModes, fanType]);
   
   // -- COLORS --
   const [selectedColor, setSelectedColor] = useState<string>('#ffffff'); // Background/Blade Color
-  const [ribColor, setRibColor] = useState<string>('#ffffff'); // Frame Color (Polymer only)
+  // CHANGE: Default Rib Color to Black for Polymer default
+  const [ribColor, setRibColor] = useState<string>('#000000'); 
   
   const [orders, setOrders] = useState<Order[]>([]);
 
@@ -732,7 +739,7 @@ function App() {
         />
       </div>
       
-      {/* MOBILE FAB */}
+      {/* MOBILE FAB - MOVED TO BOTTOM LEFT */}
       <div className={`
           md:hidden fixed bottom-6 left-6 z-30 transition-transform duration-300
           ${isMobileToolsOpen ? 'translate-y-[200%]' : 'translate-y-0'}
@@ -780,6 +787,16 @@ function App() {
               {/* MODE SWITCHER (Desktop) */}
               <div className="hidden lg:flex flex-col gap-1">
                   <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg items-center">
+                      {/* REORDERED: POLYMER FIRST */}
+                      {enabledModes.polymer && (
+                          <button 
+                            onClick={() => toggleFanType('polymer')}
+                            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${fanType === 'polymer' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+                          >
+                            <Box size={14} className="inline mr-1 mb-0.5" /> Polímero
+                          </button>
+                      )}
+                      
                       {enabledModes.cloth && (
                           <button 
                             onClick={() => toggleFanType('cloth')}
@@ -789,14 +806,6 @@ function App() {
                           </button>
                       )}
                       
-                      {enabledModes.polymer && (
-                          <button 
-                            onClick={() => toggleFanType('polymer')}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${fanType === 'polymer' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
-                          >
-                            <Box size={14} className="inline mr-1 mb-0.5" /> Polímero
-                          </button>
-                      )}
                       <HelpTooltip text="Elige entre abanico de tela o polímero." />
                   </div>
                   
@@ -850,11 +859,12 @@ function App() {
         <div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-2 px-2 flex flex-col items-center shrink-0 z-10 gap-2">
              {(enabledModes.cloth || enabledModes.polymer) && (
                  <div className="flex bg-gray-100 dark:bg-gray-700 p-0.5 rounded-lg w-full max-w-sm items-center">
-                    {enabledModes.cloth && (
-                        <button onClick={() => toggleFanType('cloth')} className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded transition-all ${fanType === 'cloth' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}>Tela</button>
-                    )}
+                    {/* REORDERED: POLYMER FIRST */}
                     {enabledModes.polymer && (
                         <button onClick={() => toggleFanType('polymer')} className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded transition-all ${fanType === 'polymer' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}>Polímero</button>
+                    )}
+                    {enabledModes.cloth && (
+                        <button onClick={() => toggleFanType('cloth')} className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded transition-all ${fanType === 'cloth' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}>Tela</button>
                     )}
                     <HelpTooltip text="Cambia entre abanico de tela o polímero." />
                   </div>

@@ -37,6 +37,18 @@ export const DEFAULT_LOGO = "https://cdn.jsdelivr.net/gh/JerryblackVe/imagenes_a
 export const SOCIAL_WHATSAPP_ICON = "https://cdn.jsdelivr.net/gh/JerryblackVe/imagenes_almacen@main/whatsapp.png";
 export const SOCIAL_INSTAGRAM_ICON = "https://cdn.jsdelivr.net/gh/JerryblackVe/imagenes_almacen@main/instagram-logo-on-transparent-background-free-png.png";
 
+// CONFIGURACIÓN GLOBAL (Predeterminada para todos los usuarios)
+// Modifica esto y sube el código para aplicar cambios a todos los dispositivos
+export const GLOBAL_CONFIG = {
+  defaultLogo: DEFAULT_LOGO,
+  enabledModes: {
+    cloth: true,   // Cambia a false para deshabilitar Tela globalmente
+    polymer: true  // Cambia a false para deshabilitar Polímero globalmente
+  },
+  // Puedes forzar una plantilla por defecto aquí si lo deseas
+  defaultPolymerImage: POLYMER_MODELS[0].url
+};
+
 // Mock template data
 export const DEFAULT_TEMPLATE = {
   id: 'standard-fan',
