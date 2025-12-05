@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Order, FanType, CustomFont } from '../types';
-import { Download, Upload, AlertCircle, FileType, Layers, Box, Image as ImageIcon, Briefcase, Type, Lock, Trash2, Save, FileJson } from 'lucide-react';
+import { Download, Upload, AlertCircle, FileType, Layers, Box, Image as ImageIcon, Briefcase, Type, Lock, Trash2, Save, FileJson, ToggleLeft, ToggleRight } from 'lucide-react';
 
 interface AdminPanelProps {
   orders: Order[];
@@ -12,6 +12,8 @@ interface AdminPanelProps {
   onUpdateFonts?: (fonts: CustomFont[]) => void;
   onExportConfig: () => void; 
   onImportConfig: (e: React.ChangeEvent<HTMLInputElement>) => void; 
+  enabledModes?: { cloth: boolean, polymer: boolean };
+  onUpdateModes?: (modes: { cloth: boolean, polymer: boolean }) => void;
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
@@ -22,7 +24,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     customFonts = [], 
     onUpdateFonts,
     onExportConfig,
-    onImportConfig
+    onImportConfig,
+    enabledModes = { cloth: true, polymer: true },
+    onUpdateModes
 }) => {
   const [activeTab, setActiveTab] = useState<'orders' | 'template' | 'settings' | 'fonts' | 'security'>('orders');
   const [targetTemplate, setTargetTemplate] = useState<FanType>('cloth'); 
@@ -224,7 +228,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               className={`px-6 py-4 font-medium text-sm whitespace-nowrap ${activeTab === 'settings' ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
               onClick={() => setActiveTab('settings')}
             >
-              Logo & Marca
+              Configuración General
             </button>
             <button 
               className={`px-6 py-4 font-medium text-sm whitespace-nowrap ${activeTab === 'fonts' ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
@@ -348,28 +352,76 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             )}
             
             {activeTab === 'settings' && (
-                <div className="max-w-xl mx-auto py-8 text-center">
-                    <div className="w-16 h-16 bg-purple-50 dark:bg-purple-900 text-purple-600 dark:text-purple-300 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Briefcase size={32} />
-                    </div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Identidad del Negocio</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
-                        Sube el logo de tu empresa para personalizar la aplicación.
-                    </p>
+                <div className="max-w-2xl mx-auto py-8">
+                    {/* LOGO SECTION */}
+                    <div className="text-center mb-12 border-b border-gray-100 dark:border-gray-700 pb-12">
+                        <div className="w-16 h-16 bg-purple-50 dark:bg-purple-900 text-purple-600 dark:text-purple-300 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Briefcase size={32} />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Identidad del Negocio</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                            Sube el logo de tu empresa para personalizar la aplicación.
+                        </p>
 
-                    <div className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl p-8">
-                        <label className="inline-block px-8 py-4 bg-gray-900 dark:bg-indigo-600 text-white rounded-lg cursor-pointer hover:bg-gray-800 dark:hover:bg-indigo-700 transition-colors shadow-lg">
-                            <input 
-                                type="file" 
-                                className="hidden" 
-                                accept="image/*" 
-                                onChange={handleLogoUpload}
-                            />
-                            <span className="flex items-center gap-2 font-medium">
-                                <Upload size={20} /> 
-                                Subir Logo (PNG/JPG)
-                            </span>
-                        </label>
+                        <div className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl p-6 text-center">
+                            <label className="inline-block px-8 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm">
+                                <input 
+                                    type="file" 
+                                    className="hidden" 
+                                    accept="image/*" 
+                                    onChange={handleLogoUpload}
+                                />
+                                <span className="flex items-center gap-2 font-medium text-sm">
+                                    <Upload size={18} /> 
+                                    Subir Logo (PNG/JPG)
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    {/* ENABLE/DISABLE MODES SECTION */}
+                    <div className="text-center">
+                         <div className="w-16 h-16 bg-teal-50 dark:bg-teal-900 text-teal-600 dark:text-teal-300 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <ToggleLeft size={32} />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Visibilidad de Productos</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                            Activa o desactiva las secciones disponibles en el editor. (Recuerda exportar la configuración para aplicar a otros dispositivos).
+                        </p>
+                        
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div className={`p-4 rounded-xl border flex items-center justify-between transition-all ${enabledModes.cloth ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-800' : 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700 opacity-70'}`}>
+                                <div className="flex items-center gap-3">
+                                    <Layers className={enabledModes.cloth ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'} />
+                                    <div className="text-left">
+                                        <div className="font-bold text-gray-900 dark:text-white text-sm">Sección Tela</div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400">Editor de abanicos de tela</div>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => onUpdateModes && onUpdateModes({...enabledModes, cloth: !enabledModes.cloth})}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${enabledModes.cloth ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enabledModes.cloth ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
+
+                            <div className={`p-4 rounded-xl border flex items-center justify-between transition-all ${enabledModes.polymer ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-800' : 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700 opacity-70'}`}>
+                                <div className="flex items-center gap-3">
+                                    <Box className={enabledModes.polymer ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'} />
+                                    <div className="text-left">
+                                        <div className="font-bold text-gray-900 dark:text-white text-sm">Sección Polímero</div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400">Editor de abanicos rígidos</div>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => onUpdateModes && onUpdateModes({...enabledModes, polymer: !enabledModes.polymer})}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${enabledModes.polymer ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enabledModes.polymer ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

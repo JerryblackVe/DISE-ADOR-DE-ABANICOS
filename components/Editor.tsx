@@ -123,18 +123,22 @@ const Editor: React.FC<EditorProps> = ({
                   if (a < 50) continue; // Skip transparent pixels
 
                   // ROBUST LOGIC 2.0:
-                  // 1. Detect RED (Existing templates)
-                  const isRed = (r > g + 20) && (r > b + 20);
+                  // ATTRAPA-TODO approach:
+                  // If it's visible:
+                  // Is it Frame? (Reddish or Blackish)
+                  // If not Frame -> It is Background (Yellow/Any other color)
                   
-                  // 2. Detect DARK/BLACK (New Straight Tip template might be black outlines)
-                  // Threshold: RGB < 60
+                  // Red Detection (R > G and R > B significant margin)
+                  const isRed = (r > g + 30) && (r > b + 30);
+                  
+                  // Dark/Black Detection (Low RGB values)
                   const isDark = (r < 60 && g < 60 && b < 60);
 
                   if (isRed || isDark) {
                       // It's the Frame/Ribs
                       frameData[i] = r; frameData[i+1] = g; frameData[i+2] = b; frameData[i+3] = a;
                   } else {
-                      // It's the Background (Wings)
+                      // It's the Background (Wings) - Everything else
                       bgData[i] = r; bgData[i+1] = g; bgData[i+2] = b; bgData[i+3] = a;
                   }
               }
@@ -575,12 +579,22 @@ const Editor: React.FC<EditorProps> = ({
         className="w-full h-full bg-white dark:bg-gray-700 shadow-xl rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 relative transition-colors"
       >
         <canvas ref={canvasRef} />
+        
+        {/* Loading Spinner */}
         {(!isReady || isImageLoading) && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-800/80 z-20 backdrop-blur-sm">
                 <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2"></div>
                 <div className="text-gray-600 dark:text-gray-300 font-medium">
                     {isImageLoading ? 'Cargando plantilla...' : 'Cargando Editor...'}
                 </div>
+            </div>
+        )}
+
+        {/* COMING SOON OVERLAY FOR CLOTH MODE */}
+        {fanType === 'cloth' && isReady && (
+            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md pointer-events-none">
+                <h2 className="text-4xl md:text-5xl font-serif font-bold text-white drop-shadow-lg text-center px-4">Próximamente</h2>
+                <p className="text-lg md:text-xl text-white/90 mt-2 font-light tracking-wide text-center px-4">Abanicos de tela estampada</p>
             </div>
         )}
         

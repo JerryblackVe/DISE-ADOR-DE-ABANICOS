@@ -1,4 +1,5 @@
 
+
 // SVG Path representing a standard 180-degree hand fan shape (Pais)
 // Centered relative to origin (0,0) at the baseline.
 // Shapes draws UPWARDS (Negative Y in SVG coords)
@@ -21,6 +22,11 @@ export const POLYMER_MODELS = [
     id: 'straight',
     name: 'Punta Recta',
     url: 'https://i.postimg.cc/BZcV83Ft/abanico-cuadrado.png'
+  },
+  {
+    id: 'heart',
+    name: 'Punta Corazón',
+    url: 'https://i.postimg.cc/nzCnF1TW/corazon.png'
   }
 ];
 
