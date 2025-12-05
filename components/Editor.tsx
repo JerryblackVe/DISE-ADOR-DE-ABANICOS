@@ -184,6 +184,25 @@ const Editor: React.FC<EditorProps> = ({
 
     fabricRef.current = canvas;
 
+    // --- MOUSE WHEEL ZOOM LOGIC ---
+    canvas.on('mouse:wheel', (opt: any) => {
+      const delta = opt.e.deltaY;
+      let zoom = canvas.getZoom();
+      
+      // Calculate new zoom factor
+      zoom *= 0.999 ** delta;
+      
+      // Clamp values (same as manual controls)
+      if (zoom > 3) zoom = 3;
+      if (zoom < 0.5) zoom = 0.5;
+      
+      // Zoom relative to mouse pointer
+      canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+      
+      opt.e.preventDefault();
+      opt.e.stopPropagation();
+    });
+
     if (fanType === 'cloth') {
         const geo = getFanGeometry(width, height, fanPath);
 
