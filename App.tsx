@@ -725,7 +725,7 @@ function App() {
       
       {/* MOBILE FAB TO OPEN TOOLS */}
       <div className={`
-          md:hidden fixed bottom-6 right-6 z-30 transition-transform duration-300
+          md:hidden fixed bottom-6 left-6 z-30 transition-transform duration-300
           ${isMobileToolsOpen ? 'translate-y-[200%]' : 'translate-y-0'}
       `}>
           <button 
