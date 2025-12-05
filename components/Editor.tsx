@@ -203,6 +203,46 @@ const Editor: React.FC<EditorProps> = ({
       opt.e.stopPropagation();
     });
 
+    // --- PANNING (Middle Mouse Button) ---
+    let isDragging = false;
+    let lastPosX = 0;
+    let lastPosY = 0;
+
+    canvas.on('mouse:down', (opt: any) => {
+        const evt = opt.e;
+        // Button 1 is Middle Mouse (Wheel click)
+        if (evt.button === 1) {
+            isDragging = true;
+            canvas.selection = false; // Disable standard selection
+            lastPosX = evt.clientX;
+            lastPosY = evt.clientY;
+            canvas.defaultCursor = 'grabbing'; 
+            evt.preventDefault(); // Prevent default browser scroll
+        }
+    });
+
+    canvas.on('mouse:move', (opt: any) => {
+        if (isDragging) {
+            const evt = opt.e;
+            const vpt = canvas.viewportTransform;
+            vpt[4] += evt.clientX - lastPosX;
+            vpt[5] += evt.clientY - lastPosY;
+            canvas.requestRenderAll();
+            lastPosX = evt.clientX;
+            lastPosY = evt.clientY;
+            evt.preventDefault();
+        }
+    });
+
+    canvas.on('mouse:up', () => {
+        if (isDragging) {
+            canvas.setViewportTransform(canvas.viewportTransform);
+            isDragging = false;
+            canvas.selection = true;
+            canvas.defaultCursor = 'default';
+        }
+    });
+
     // --- KEYBOARD SHORTCUTS (DELETE) ---
     const handleKeyDown = (e: KeyboardEvent) => {
         if (!fabricRef.current) return;

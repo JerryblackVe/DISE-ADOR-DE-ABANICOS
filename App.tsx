@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import Toolbar from './components/Toolbar';
 import Editor from './components/Editor';
@@ -6,7 +7,7 @@ import OrderForm from './components/OrderForm';
 import AdminPanel from './components/AdminPanel';
 import { generatePattern } from './services/geminiService';
 import { Settings, ShoppingBag, Layers, Box, Download, Moon, Sun, Edit3 } from 'lucide-react';
-import { DEFAULT_FAN_PATH, DEFAULT_POLYMER_IMAGE_URL, DEFAULT_LOGO, DEFAULT_CLOTH_SVG_URL } from './constants';
+import { DEFAULT_FAN_PATH, DEFAULT_POLYMER_IMAGE_URL, DEFAULT_LOGO, DEFAULT_CLOTH_SVG_URL, SOCIAL_WHATSAPP_ICON, SOCIAL_INSTAGRAM_ICON } from './constants';
 import { AppView, Order, FanType, CustomFont } from './types';
 
 // Declare fabric
@@ -723,7 +724,7 @@ function App() {
         />
       </div>
       
-      {/* MOBILE FAB TO OPEN TOOLS */}
+      {/* MOBILE FAB TO OPEN TOOLS - MOVED TO BOTTOM LEFT */}
       <div className={`
           md:hidden fixed bottom-6 left-6 z-30 transition-transform duration-300
           ${isMobileToolsOpen ? 'translate-y-[200%]' : 'translate-y-0'}
@@ -842,6 +843,22 @@ function App() {
 
         {/* MAIN CANVAS AREA - Fills remaining space in the column */}
         <div className="flex-1 relative overflow-hidden bg-gray-100 dark:bg-gray-900 flex flex-col">
+            
+            {/* SOCIAL MEDIA FLOATING BUTTONS (Top Left of Canvas Area) */}
+            <div className="absolute top-4 left-4 z-30 flex flex-col gap-2 pointer-events-none md:pointer-events-auto">
+               <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-white/90 dark:bg-gray-800/90 px-2 py-1 rounded-md backdrop-blur-sm shadow-sm border border-gray-100 dark:border-gray-700 pointer-events-auto">
+                 Si necesitas ayuda contáctanos por nuestras redes sociales
+               </span>
+               <div className="flex gap-2 pointer-events-auto">
+                  <a href="https://wa.me/541164038489" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-transform">
+                     <img src={SOCIAL_WHATSAPP_ICON} alt="WhatsApp" className="w-10 h-10 md:w-12 md:h-12 drop-shadow-md" />
+                  </a>
+                  <a href="https://www.instagram.com/fantastic.plastik" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-transform">
+                     <img src={SOCIAL_INSTAGRAM_ICON} alt="Instagram" className="w-10 h-10 md:w-12 md:h-12 drop-shadow-md" />
+                  </a>
+               </div>
+            </div>
+
             <Editor 
                 onCanvasReady={setCanvas}
                 onSelectionChange={setSelectedObject}

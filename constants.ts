@@ -11,11 +11,15 @@ export const DEFAULT_FAN_PATH = "M -280 0 A 280 280 0 0 1 280 0 L 100 0 A 100 10
 // New Default Cloth SVG URL (Using jsDelivr CDN for better reliability/CORS and raw access)
 export const DEFAULT_CLOTH_SVG_URL = "https://cdn.jsdelivr.net/gh/JerryblackVe/imagenes_almacen@main/tela_canva_abanico.svg";
 
-// Polymer PNG Template URL (Restored)
+// Polymer PNG Template URL (Updated to PostImages)
 export const DEFAULT_POLYMER_IMAGE_URL = "https://i.postimg.cc/XqR6GjNb/canvapolimero.png";
 
 // Default Logo Path (Using external URL via jsDelivr)
 export const DEFAULT_LOGO = "https://cdn.jsdelivr.net/gh/JerryblackVe/imagenes_almacen@main/LOGO.png";
+
+// Social Media Icons
+export const SOCIAL_WHATSAPP_ICON = "https://cdn.jsdelivr.net/gh/JerryblackVe/imagenes_almacen@main/whatsapp.png";
+export const SOCIAL_INSTAGRAM_ICON = "https://cdn.jsdelivr.net/gh/JerryblackVe/imagenes_almacen@main/instagram-logo-on-transparent-background-free-png.png";
 
 // Mock template data
 export const DEFAULT_TEMPLATE = {
