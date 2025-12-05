@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import Toolbar from './components/Toolbar';
 import Editor from './components/Editor';
@@ -606,7 +607,8 @@ function App() {
 
   const handleProceedToCheckout = () => {
     if(!canvas) return;
-    const dataUrl = canvas.toDataURL({ format: 'png', quality: 1, multiplier: 2 });
+    // Reduced multiplier to 1 for preview to save memory and avoid HUGE strings passed to EmailJS later
+    const dataUrl = canvas.toDataURL({ format: 'png', quality: 0.8, multiplier: 1 });
     setPreviewImage(dataUrl);
     setCurrentView(AppView.CHECKOUT);
   }
@@ -667,6 +669,22 @@ function App() {
       canvas.renderAll();
   };
 
+  const getDesignDetails = () => {
+      const material = fanType === 'cloth' ? 'Tela' : 'Polímero';
+      let modelName = 'Abanico Clásico';
+      
+      if (fanType === 'polymer') {
+          const m = POLYMER_MODELS.find(p => p.id === selectedPolymerId);
+          modelName = m ? `Abanico Polímero - ${m.name}` : 'Abanico Polímero';
+      } else {
+          modelName = 'Abanico de Tela';
+      }
+
+      const colors = `Fondo: ${selectedColor}, Marco/Borde: ${fanType === 'polymer' ? ribColor : 'N/A'}`;
+      
+      return { material, modelName, colors };
+  }
+
   if (currentView === AppView.ADMIN) {
       return (
         <AdminPanel 
@@ -685,7 +703,14 @@ function App() {
   }
 
   if (currentView === AppView.CHECKOUT) {
-      return <OrderForm previewImage={previewImage} onSubmit={handleOrderSubmit} onCancel={() => setCurrentView(AppView.EDITOR)} />;
+      return (
+        <OrderForm 
+            previewImage={previewImage} 
+            designDetails={getDesignDetails()}
+            onSubmit={handleOrderSubmit} 
+            onCancel={() => setCurrentView(AppView.EDITOR)} 
+        />
+      );
   }
 
   if (currentView === AppView.SUCCESS) {

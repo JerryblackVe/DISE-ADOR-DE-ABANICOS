@@ -37,6 +37,11 @@ export const DEFAULT_LOGO = "https://cdn.jsdelivr.net/gh/JerryblackVe/imagenes_a
 export const SOCIAL_WHATSAPP_ICON = "https://cdn.jsdelivr.net/gh/JerryblackVe/imagenes_almacen@main/whatsapp.png";
 export const SOCIAL_INSTAGRAM_ICON = "https://cdn.jsdelivr.net/gh/JerryblackVe/imagenes_almacen@main/instagram-logo-on-transparent-background-free-png.png";
 
+// EMAILJS CONFIGURATION
+export const EMAILJS_SERVICE_ID = "service_8zekvls";
+export const EMAILJS_TEMPLATE_ID = "template_r7tbw8l";
+export const EMAILJS_PUBLIC_KEY = "XYIJ4yfzD__Cs2eXY";
+
 // CONFIGURACIÓN GLOBAL (Predeterminada para todos los usuarios)
 // Modifica esto y sube el código para aplicar cambios a todos los dispositivos
 export const GLOBAL_CONFIG = {
@@ -60,12 +65,16 @@ export const DEFAULT_TEMPLATE = {
 
 export const AVAILABLE_FONTS = [
   'Arial',
-  'Times New Roman',
-  'Courier New',
   'Inter',
-  'Playfair Display',
-  'Pacifico',
-  'Roboto'
+  'Roboto',
+  'Playfair Display', // Elegante / Serif
+  'Great Vibes',      // Cursiva Elegante (Bodas)
+  'Dancing Script',   // Cursiva Casual
+  'Pacifico',         // Divertida
+  'Cinzel',           // Clásica / Romana
+  'Montserrat',       // Moderna / Geométrica
+  'Courier New',
+  'Times New Roman'
 ];
 
 // Updated Palettes as per request

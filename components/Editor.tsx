@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { FanType } from '../types';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
@@ -340,12 +341,12 @@ const Editor: React.FC<EditorProps> = ({
             const currentW = canvas.getWidth();
             const currentH = canvas.getHeight();
             
-            // Calculate scale to fit (0.75 for Safety Margin)
+            // Calculate scale to fit (0.85 for better fit/less clipping)
             const imgW = frameImg.width || 100;
             const imgH = frameImg.height || 100;
             
-            const scaleX = (currentW * 0.75) / imgW;
-            const scaleY = (currentH * 0.75) / imgH;
+            const scaleX = (currentW * 0.85) / imgW;
+            const scaleY = (currentH * 0.85) / imgH;
             const scale = Math.min(scaleX, scaleY);
 
             // Configure Background (The Yellow part)
@@ -488,8 +489,8 @@ const Editor: React.FC<EditorProps> = ({
              // Polymer (Image) resizing
              const imgW = refObj.width!;
              const imgH = refObj.height!;
-             const scaleX = (newW * 0.75) / imgW;
-             const scaleY = (newH * 0.75) / imgH;
+             const scaleX = (newW * 0.85) / imgW;
+             const scaleY = (newH * 0.85) / imgH;
              newScale = Math.min(scaleX, scaleY);
              
              canvas.getObjects().forEach((obj: any) => {
@@ -612,9 +613,10 @@ const Editor: React.FC<EditorProps> = ({
 
       </div>
       
-      {/* Moved Print Area Badge slightly to center-bottom to avoid zoom controls overlap on small screens */}
-      <div className="absolute top-2 right-2 md:top-auto md:right-auto md:bottom-4 md:left-1/2 md:transform md:-translate-x-1/2 bg-black/70 dark:bg-black/90 text-white px-3 py-1 md:px-4 md:py-2 rounded-full text-[10px] md:text-xs backdrop-blur-sm pointer-events-none z-10 whitespace-nowrap">
-        Área de Impresión (23cm)
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 pointer-events-none z-10 w-full text-center px-4">
+        <p className="text-lg md:text-2xl font-serif font-bold text-gray-400/80 dark:text-gray-500/80 uppercase tracking-widest drop-shadow-sm">
+            Diseña tu abanico ideal
+        </p>
       </div>
     </div>
   );

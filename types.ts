@@ -55,3 +55,14 @@ export interface CustomFont {
   name: string;
   data: string; // Base64 data URL
 }
+
+export interface OrderFormProps {
+  previewImage: string;
+  designDetails: {
+    modelName: string;
+    material: string;
+    colors: string;
+  };
+  onSubmit: (data: any) => void;
+  onCancel: () => void;
+}
