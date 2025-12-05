@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { FanType } from '../types';
+import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 // Declare fabric on window
 declare const fabric: any;
@@ -48,6 +49,29 @@ const Editor: React.FC<EditorProps> = ({
     const top = canvasHeight / 2 + (pathHeight * scale) / 2;
 
     return { scale, left, top };
+  };
+
+  // --- Zoom Functions ---
+  const handleZoom = (factor: number) => {
+    if (!fabricRef.current) return;
+    const canvas = fabricRef.current;
+    
+    let newZoom = canvas.getZoom() + factor;
+    // Limits
+    if (newZoom < 0.5) newZoom = 0.5;
+    if (newZoom > 3) newZoom = 3;
+
+    // Zoom to center
+    canvas.zoomToPoint(new fabric.Point(canvas.getWidth() / 2, canvas.getHeight() / 2), newZoom);
+    canvas.requestRenderAll();
+  };
+
+  const resetZoom = () => {
+      if (!fabricRef.current) return;
+      const canvas = fabricRef.current;
+      canvas.setViewportTransform([1, 0, 0, 1, 0, 0]); // Reset transform matrix
+      canvas.setZoom(1);
+      canvas.requestRenderAll();
   };
 
   // --- Theme Change Effect ---
@@ -219,15 +243,13 @@ const Editor: React.FC<EditorProps> = ({
             // Get CURRENT canvas dimensions (Logical)
             const currentW = canvas.getWidth();
             const currentH = canvas.getHeight();
-            const centerX = currentW / 2;
-            const centerY = currentH / 2;
             
-            // Calculate scale to fit (0.75 for Safety Margin)
+            // Calculate scale to fit (0.85 for Safety Margin & Pixel Tolerance)
             const imgW = frameImg.width || 100;
             const imgH = frameImg.height || 100;
             
-            const scaleX = (currentW * 0.75) / imgW;
-            const scaleY = (currentH * 0.75) / imgH;
+            const scaleX = (currentW * 0.85) / imgW;
+            const scaleY = (currentH * 0.85) / imgH;
             const scale = Math.min(scaleX, scaleY);
 
             // Configure Background (The Yellow part)
@@ -359,11 +381,7 @@ const Editor: React.FC<EditorProps> = ({
                 
                 // For user content
                 const sFactor = newScale / oldScale;
-                // Simple centering adjustment relative to center delta? 
-                // A full world transform is complex, usually easiest to just center fan and let user move items.
-                // But let's try to maintain relative position to CENTER.
                 
-                // For this request, simply recentering the fan is priority.
                 if (obj.clipPath) {
                     obj.clipPath.set({ left: geo.left, top: geo.top, scaleX: geo.scale, scaleY: geo.scale });
                     obj.clipPath.setCoords();
@@ -374,8 +392,8 @@ const Editor: React.FC<EditorProps> = ({
              // Polymer (Image) resizing
              const imgW = refObj.width!;
              const imgH = refObj.height!;
-             const scaleX = (newW * 0.75) / imgW;
-             const scaleY = (newH * 0.75) / imgH;
+             const scaleX = (newW * 0.85) / imgW;
+             const scaleY = (newH * 0.85) / imgH;
              newScale = Math.min(scaleX, scaleY);
              
              canvas.getObjects().forEach((obj: any) => {
@@ -471,8 +489,23 @@ const Editor: React.FC<EditorProps> = ({
                 </div>
             </div>
         )}
+        
+        {/* Zoom Controls */}
+        <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
+            <button onClick={() => handleZoom(0.1)} className="p-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Acercar">
+                <ZoomIn size={20} />
+            </button>
+            <button onClick={() => resetZoom()} className="p-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Restablecer">
+                <RotateCcw size={20} />
+            </button>
+            <button onClick={() => handleZoom(-0.1)} className="p-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Alejar">
+                <ZoomOut size={20} />
+            </button>
+        </div>
+
       </div>
       
+      {/* Moved Print Area Badge slightly to center-bottom to avoid zoom controls overlap on small screens */}
       <div className="absolute top-2 right-2 md:top-auto md:right-auto md:bottom-4 md:left-1/2 md:transform md:-translate-x-1/2 bg-black/70 dark:bg-black/90 text-white px-3 py-1 md:px-4 md:py-2 rounded-full text-[10px] md:text-xs backdrop-blur-sm pointer-events-none z-10 whitespace-nowrap">
         Área de Impresión (23cm)
       </div>
