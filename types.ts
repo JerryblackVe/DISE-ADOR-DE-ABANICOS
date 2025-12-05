@@ -45,6 +45,12 @@ export enum AppView {
 
 export type FanType = 'cloth' | 'polymer';
 
+export interface PolymerModel {
+  id: string;
+  name: string;
+  url: string;
+}
+
 export interface CustomFont {
   name: string;
   data: string; // Base64 data URL

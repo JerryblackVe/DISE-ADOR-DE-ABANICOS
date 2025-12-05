@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { AVAILABLE_FONTS, COMMON_COLORS, FLUO_COLORS } from '../constants';
 import { FanType, CustomFont } from '../types';
+import HelpTooltip from './HelpTooltip';
 
 interface ToolbarProps {
   onAddText: () => void;
@@ -208,6 +209,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
             <div>
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                 <Palette size={16} /> {fanType === 'polymer' ? 'Color de Alas (Fondo)' : 'Color de Tela'}
+                <HelpTooltip text={fanType === 'polymer' ? "Cambia el color de las 'alas' internas. Las imágenes se pondrán encima." : "Cambia el color base de la tela del abanico."} />
               </h3>
               
               <ColorGrid 
@@ -235,8 +237,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                         <Grid size={16} /> Color de Marco
+                        <HelpTooltip text="Cambia el color de las varillas y bordes externos." />
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Bordes y estructura superior</p>
                     
                     <ColorGrid 
                         colors={COMMON_COLORS} 
@@ -273,12 +275,14 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     className="w-full py-3 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-bold flex items-center justify-center hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors touch-manipulation"
                 >
                     <Pipette size={16} className="mr-2"/> Igualar a Color de Marco
+                    <HelpTooltip text="Pinta el objeto seleccionado del mismo color que las varillas." />
                 </button>
             )}
 
             <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
                <div className="flex items-center text-xs font-bold text-gray-700 dark:text-gray-200 mb-2">
                  <Layers size={14} className="mr-2"/> Orden de Capas
+                 <HelpTooltip text="Organiza qué elementos van arriba o abajo." />
                </div>
                <div className="grid grid-cols-2 gap-2">
                   <button 
@@ -362,6 +366,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                   <div>
                     <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-2 flex items-center">
                         <PaintBucket size={12} className="mr-1"/> Color y Opacidad
+                        <HelpTooltip text="Modifica el color de logos o iconos." />
                     </h4>
                     
                     <div className="space-y-4 p-3 border border-gray-100 dark:border-gray-600 rounded-lg">

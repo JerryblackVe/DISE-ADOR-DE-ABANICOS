@@ -85,7 +85,7 @@ const Editor: React.FC<EditorProps> = ({
     }
   }, [isDarkMode]);
 
-  // Function to process PNG pixels and split into Frame (Red) and Background (Yellow)
+  // Function to process PNG pixels and split into Frame (Red/Black) and Background (Others)
   const processPolymerImage = (base64Img: string): Promise<{ frameImg: any, bgImg: any }> => {
       return new Promise((resolve, reject) => {
           const img = new Image();
@@ -109,9 +109,9 @@ const Editor: React.FC<EditorProps> = ({
               const imgData = ctx.getImageData(0, 0, w, h);
               const totalPixels = imgData.data.length;
 
-              // Buffer for Frame (Red parts)
+              // Buffer for Frame
               const frameData = new Uint8ClampedArray(totalPixels);
-              // Buffer for Background (Yellow parts)
+              // Buffer for Background
               const bgData = new Uint8ClampedArray(totalPixels);
 
               for(let i=0; i < totalPixels; i+=4) {
@@ -122,19 +122,19 @@ const Editor: React.FC<EditorProps> = ({
 
                   if (a < 50) continue; // Skip transparent pixels
 
-                  // ROBUST LOGIC:
-                  // Instead of checking specific yellow, we check if it's RED.
-                  // If it's RED -> Frame.
-                  // If it's NOT RED (and visible) -> Background.
-                  
-                  // Red detection: Red is significantly higher than Green and Blue
+                  // ROBUST LOGIC 2.0:
+                  // 1. Detect RED (Existing templates)
                   const isRed = (r > g + 20) && (r > b + 20);
+                  
+                  // 2. Detect DARK/BLACK (New Straight Tip template might be black outlines)
+                  // Threshold: RGB < 60
+                  const isDark = (r < 60 && g < 60 && b < 60);
 
-                  if (isRed) {
-                      // Copy to Frame buffer
+                  if (isRed || isDark) {
+                      // It's the Frame/Ribs
                       frameData[i] = r; frameData[i+1] = g; frameData[i+2] = b; frameData[i+3] = a;
                   } else {
-                      // Catch-all for everything else (Yellow, borders, shadows) -> Background
+                      // It's the Background (Wings)
                       bgData[i] = r; bgData[i+1] = g; bgData[i+2] = b; bgData[i+3] = a;
                   }
               }
@@ -337,12 +337,12 @@ const Editor: React.FC<EditorProps> = ({
             const currentW = canvas.getWidth();
             const currentH = canvas.getHeight();
             
-            // Calculate scale to fit (0.85 for Safety Margin & Pixel Tolerance)
+            // Calculate scale to fit (0.75 for Safety Margin)
             const imgW = frameImg.width || 100;
             const imgH = frameImg.height || 100;
             
-            const scaleX = (currentW * 0.85) / imgW;
-            const scaleY = (currentH * 0.85) / imgH;
+            const scaleX = (currentW * 0.75) / imgW;
+            const scaleY = (currentH * 0.75) / imgH;
             const scale = Math.min(scaleX, scaleY);
 
             // Configure Background (The Yellow part)
@@ -485,8 +485,8 @@ const Editor: React.FC<EditorProps> = ({
              // Polymer (Image) resizing
              const imgW = refObj.width!;
              const imgH = refObj.height!;
-             const scaleX = (newW * 0.85) / imgW;
-             const scaleY = (newH * 0.85) / imgH;
+             const scaleX = (newW * 0.75) / imgW;
+             const scaleY = (newH * 0.75) / imgH;
              newScale = Math.min(scaleX, scaleY);
              
              canvas.getObjects().forEach((obj: any) => {

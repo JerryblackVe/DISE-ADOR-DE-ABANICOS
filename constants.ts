@@ -1,5 +1,4 @@
 
-
 // SVG Path representing a standard 180-degree hand fan shape (Pais)
 // Centered relative to origin (0,0) at the baseline.
 // Shapes draws UPWARDS (Negative Y in SVG coords)
@@ -11,8 +10,19 @@ export const DEFAULT_FAN_PATH = "M -280 0 A 280 280 0 0 1 280 0 L 100 0 A 100 10
 // New Default Cloth SVG URL (Using jsDelivr CDN for better reliability/CORS and raw access)
 export const DEFAULT_CLOTH_SVG_URL = "https://cdn.jsdelivr.net/gh/JerryblackVe/imagenes_almacen@main/tela_canva_abanico.svg";
 
-// Polymer PNG Template URL (Updated to PostImages)
-export const DEFAULT_POLYMER_IMAGE_URL = "https://i.postimg.cc/XqR6GjNb/canvapolimero.png";
+// Polymer Models List
+export const POLYMER_MODELS = [
+  {
+    id: 'rounded',
+    name: 'Punta Redondeada',
+    url: 'https://i.postimg.cc/XqR6GjNb/canvapolimero.png'
+  },
+  {
+    id: 'straight',
+    name: 'Punta Recta',
+    url: 'https://i.postimg.cc/BZcV83Ft/abanico-cuadrado.png'
+  }
+];
 
 // Default Logo Path (Using external URL via jsDelivr)
 export const DEFAULT_LOGO = "https://cdn.jsdelivr.net/gh/JerryblackVe/imagenes_almacen@main/LOGO.png";

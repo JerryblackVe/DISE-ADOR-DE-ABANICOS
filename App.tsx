@@ -1,14 +1,14 @@
 
-
 import React, { useState, useRef, useEffect } from 'react';
 import Toolbar from './components/Toolbar';
 import Editor from './components/Editor';
 import OrderForm from './components/OrderForm';
 import AdminPanel from './components/AdminPanel';
 import { generatePattern } from './services/geminiService';
-import { Settings, ShoppingBag, Layers, Box, Download, Moon, Sun, Edit3 } from 'lucide-react';
-import { DEFAULT_FAN_PATH, DEFAULT_POLYMER_IMAGE_URL, DEFAULT_LOGO, DEFAULT_CLOTH_SVG_URL, SOCIAL_WHATSAPP_ICON, SOCIAL_INSTAGRAM_ICON } from './constants';
+import { Settings, ShoppingBag, Layers, Box, Download, Moon, Sun, Edit3, Check } from 'lucide-react';
+import { DEFAULT_FAN_PATH, POLYMER_MODELS, DEFAULT_LOGO, DEFAULT_CLOTH_SVG_URL, SOCIAL_WHATSAPP_ICON, SOCIAL_INSTAGRAM_ICON } from './constants';
 import { AppView, Order, FanType, CustomFont } from './types';
+import HelpTooltip from './components/HelpTooltip';
 
 // Declare fabric
 declare const fabric: any;
@@ -74,10 +74,11 @@ function App() {
     return localStorage.getItem('custom_fan_template') || DEFAULT_FAN_PATH;
   });
 
-  // 4. Polymer Template (PNG Image) - Reverted to Image
-  const [polymerFanImage, setPolymerFanImage] = useState<string>(() => {
-    return localStorage.getItem('custom_polymer_image') || '';
-  });
+  // 4. Polymer Template (PNG Image) - Active Image Data
+  const [polymerFanImage, setPolymerFanImage] = useState<string>('');
+  
+  // New State for Selected Polymer Model ID
+  const [selectedPolymerId, setSelectedPolymerId] = useState<string>(POLYMER_MODELS[0].id);
 
   // 5. Custom Fonts
   const [customFonts, setCustomFonts] = useState<CustomFont[]>(() => {
@@ -87,11 +88,10 @@ function App() {
     } catch (e) { return []; }
   });
 
-  // INITIALIZATION: Fetch Default Cloth SVG & Polymer PNG from GitHub/CDN
+  // INITIALIZATION: Fetch Default Cloth SVG
   useEffect(() => {
     // 1. Cloth
     const savedTemplate = localStorage.getItem('custom_fan_template');
-    // If it's the old simple path or missing, update it
     const isOldDefault = savedTemplate && savedTemplate.startsWith("M -280");
     
     if (!savedTemplate || isOldDefault) {
@@ -111,26 +111,36 @@ function App() {
             })
             .catch(e => console.error("Error fetching cloth SVG:", e));
     }
-
-    // 2. Polymer (PNG)
-    const savedPolymer = localStorage.getItem('custom_polymer_image');
-    if (!savedPolymer) {
-        console.log("Fetching updated Polymer PNG...");
-        // Fetch as blob -> convert to base64
-        fetch(`${DEFAULT_POLYMER_IMAGE_URL}?t=${Date.now()}`)
-            .then(res => res.blob())
-            .then(blob => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    const base64data = reader.result as string;
-                    setPolymerFanImage(base64data);
-                    localStorage.setItem('custom_polymer_image', base64data);
-                }
-                reader.readAsDataURL(blob);
-            })
-            .catch(e => console.error("Error fetching polymer PNG:", e));
-    }
   }, []);
+
+  // POLYMER MODEL LOADER
+  const loadPolymerModel = async (modelId: string) => {
+    setIsProcessing(true);
+    try {
+        const model = POLYMER_MODELS.find(m => m.id === modelId) || POLYMER_MODELS[0];
+        console.log("Loading Polymer Model:", model.name);
+        
+        const response = await fetch(`${model.url}?t=${Date.now()}`);
+        const blob = await response.blob();
+        
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64data = reader.result as string;
+            setPolymerFanImage(base64data);
+            setIsProcessing(false);
+        };
+        reader.readAsDataURL(blob);
+    } catch (e) {
+        console.error("Error fetching polymer model:", e);
+        setIsProcessing(false);
+    }
+  };
+
+  // Initial Polymer Load or Model Change
+  useEffect(() => {
+     loadPolymerModel(selectedPolymerId);
+  }, [selectedPolymerId]);
+
 
   // Load Custom Fonts into DOM
   useEffect(() => {
@@ -165,21 +175,24 @@ function App() {
   // --- MODE SWITCHING ---
   const toggleFanType = (type: FanType) => {
       setFanType(type);
-      // Set defaults as per requirements
       if (type === 'polymer') {
-          // Polymer Defaults: Background White, Frame Black
+          // Polymer Defaults
           setSelectedColor('#ffffff'); 
           setRibColor('#000000'); 
       } else {
-          // Cloth Default: White
+          // Cloth Default
           setSelectedColor('#ffffff'); 
       }
-      // Clear canvas selection to avoid bugs
       if(canvas) {
           canvas.discardActiveObject();
           canvas.requestRenderAll();
           setSelectedObject(null);
       }
+  };
+
+  const handlePolymerModelChange = (id: string) => {
+      setSelectedPolymerId(id);
+      // Trigger loader via effect
   };
 
   const toggleDarkMode = () => {
@@ -298,24 +311,18 @@ function App() {
     reader.onload = (f) => {
       const rawSrc = f.target?.result as string;
       
-      // Create a temporary HTML Image to process
       const tempImg = new Image();
       tempImg.src = rawSrc;
       tempImg.onload = () => {
           
-          // 1. AUTO BACKGROUND REMOVAL
           const cleanSrc = removeWhiteBackground(tempImg);
 
           fabric.Image.fromURL(cleanSrc, (img: any) => {
-            // Scale down if image is huge
             if (img.width > 300) {
                 img.scaleToWidth(300);
             }
-            
-            // Reset origin
             img.set({ originX: 'center', originY: 'center' });
             
-            // 2. POLYMER LOGIC: ENFORCE FRAME COLOR
             if (fanType === 'polymer') {
                 const grayscale = new fabric.Image.filters.Grayscale();
                 const blend = new fabric.Image.filters.BlendColor({
@@ -486,10 +493,10 @@ function App() {
               setClothFanPath(newData);
               localStorage.setItem('custom_fan_template', newData);
           } else {
-              // Polymer uses Image Base64
               const compressed = await compressImage(newData, 1024);
               setPolymerFanImage(compressed);
-              localStorage.setItem('custom_polymer_image', compressed);
+              // We don't save polymer override in this mode since we use presets,
+              // but keeping it for compatibility if needed.
           }
       } catch (e) {
           console.error("Storage error:", e);
@@ -499,13 +506,12 @@ function App() {
 
   const handleLogoUpdate = async (newLogo: string) => {
       try {
-          // Compress logo to a small size (200px width is plenty for header)
           const compressedLogo = await compressImage(newLogo, 200);
           setLogoSrc(compressedLogo);
           localStorage.setItem('custom_logo', compressedLogo);
       } catch (e) {
           console.error("Storage error:", e);
-          alert("Error: El logo es demasiado grande. Intenta subir una versión más pequeña.");
+          alert("Error: El logo es demasiado grande.");
       }
   };
 
@@ -514,16 +520,14 @@ function App() {
         setCustomFonts(fonts);
         localStorage.setItem('custom_fonts', JSON.stringify(fonts));
       } catch (e) {
-        alert("Error: Las fuentes son demasiado pesadas para guardar. Intenta con menos fuentes.");
+        alert("Error: Las fuentes son demasiado pesadas.");
       }
   };
 
-  // --- CONFIG EXPORT / IMPORT ---
   const handleExportConfig = () => {
       const config = {
           custom_logo: logoSrc,
           custom_fan_template: clothFanPath,
-          custom_polymer_image: polymerFanImage, // Updated key
           custom_fonts: customFonts,
           admin_password: localStorage.getItem('admin_password') || 'Valeria.1'
       };
@@ -546,26 +550,12 @@ function App() {
       reader.onload = (event) => {
           try {
               const config = JSON.parse(event.target?.result as string);
+              if(config.custom_logo) setLogoSrc(config.custom_logo);
+              if(config.custom_fan_template) setClothFanPath(config.custom_fan_template);
+              if(config.custom_fonts) setCustomFonts(config.custom_fonts);
+              if(config.admin_password) localStorage.setItem('admin_password', config.admin_password);
               
-              if(config.custom_logo) {
-                  setLogoSrc(config.custom_logo);
-                  localStorage.setItem('custom_logo', config.custom_logo);
-              }
-              if(config.custom_fan_template) {
-                  setClothFanPath(config.custom_fan_template);
-                  localStorage.setItem('custom_fan_template', config.custom_fan_template);
-              }
-              if(config.custom_polymer_image) {
-                  setPolymerFanImage(config.custom_polymer_image);
-                  localStorage.setItem('custom_polymer_image', config.custom_polymer_image);
-              }
-              if(config.custom_fonts) {
-                  setCustomFonts(config.custom_fonts);
-                  localStorage.setItem('custom_fonts', JSON.stringify(config.custom_fonts));
-              }
-              if(config.admin_password) {
-                  localStorage.setItem('admin_password', config.admin_password);
-              }
+              localStorage.setItem('custom_logo', config.custom_logo || DEFAULT_LOGO);
               
               alert("Configuración importada exitosamente. La página se recargará.");
               window.location.reload();
@@ -575,8 +565,6 @@ function App() {
       };
       reader.readAsText(file);
   };
-
-  // --- ORDER FLOW ---
 
   const handleProceedToCheckout = () => {
     if(!canvas) return;
@@ -599,10 +587,8 @@ function App() {
     setCurrentView(AppView.SUCCESS);
   };
 
-  // --- DOWNLOAD PNG ---
   const handleDownloadImage = () => {
       if(!canvas) return;
-
       const originalBg = canvas.backgroundColor;
       canvas.backgroundColor = null;
       canvas.renderAll();
@@ -625,8 +611,6 @@ function App() {
       document.body.removeChild(link);
   };
 
-  // --- Z-INDEX CONTROLS ---
-
   const sendToBack = () => {
       const activeObject = canvas?.getActiveObject();
       if(!canvas || !activeObject) return;
@@ -644,8 +628,6 @@ function App() {
       if(outline) canvas.bringToFront(outline);
       canvas.renderAll();
   };
-
-  // --- VIEW RENDER ---
 
   if (currentView === AppView.ADMIN) {
       return (
@@ -685,16 +667,9 @@ function App() {
   }
 
   return (
-    // Use 100dvh for proper mobile height including address bar, prevent global scroll
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-gray-50 dark:bg-gray-900 overflow-hidden font-sans transition-colors duration-200">
       
-      {/* 
-         LAYOUT STRUCTURE:
-         Mobile: Header -> Canvas (Flex-1) -> FAB / Sliding Toolbar
-         Desktop: Toolbar (Left Sidebar) -> Header -> Canvas
-      */}
-
-      {/* TOOLBAR WRAPPER - SLIDING DRAWER FOR MOBILE */}
+      {/* TOOLBAR WRAPPER */}
       <div className={`
           fixed bottom-0 left-0 w-full h-[45vh] z-40 bg-white dark:bg-gray-800 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] rounded-t-2xl transition-transform duration-300 ease-out
           md:relative md:translate-y-0 md:w-80 md:h-full md:order-1 md:shadow-xl md:rounded-none md:z-30
@@ -724,7 +699,7 @@ function App() {
         />
       </div>
       
-      {/* MOBILE FAB TO OPEN TOOLS - MOVED TO BOTTOM LEFT */}
+      {/* MOBILE FAB */}
       <div className={`
           md:hidden fixed bottom-6 left-6 z-30 transition-transform duration-300
           ${isMobileToolsOpen ? 'translate-y-[200%]' : 'translate-y-0'}
@@ -738,16 +713,13 @@ function App() {
           </button>
       </div>
 
-      {/* MAIN CONTENT WRAPPER */}
-      {/* Mobile: Order 2. Desktop: Order 2. Takes remaining space. */}
       <div className="flex-1 flex flex-col h-full relative order-2 min-w-0">
         
         {/* HEADER */}
-        <header className="h-16 md:h-20 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center px-3 md:px-6 shadow-sm z-20 transition-colors shrink-0">
+        <header className="h-auto min-h-[4rem] bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex flex-wrap gap-2 justify-between items-center px-3 py-2 md:px-6 shadow-sm z-20 transition-colors shrink-0">
            
            {/* LEFT: Logo & Title */}
            <div className="flex items-center gap-2 md:gap-4 overflow-hidden min-w-0">
-              {/* LOGO */}
               <div className="h-9 w-9 md:h-12 md:w-12 rounded-full overflow-hidden border-2 border-orange-200 dark:border-orange-900 shadow-sm relative group bg-white flex items-center justify-center shrink-0">
                  <img
                    src={logoSrc} 
@@ -773,78 +745,97 @@ function App() {
               <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-2 hidden lg:block"></div>
               
               {/* MODE SWITCHER (Desktop) */}
-              <div className="hidden lg:flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
-                  <button 
-                    onClick={() => toggleFanType('cloth')}
-                    className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${fanType === 'cloth' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
-                  >
-                     <Layers size={14} className="inline mr-1 mb-0.5" /> Tela
-                  </button>
-                  <button 
-                    onClick={() => toggleFanType('polymer')}
-                    className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${fanType === 'polymer' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
-                  >
-                     <Box size={14} className="inline mr-1 mb-0.5" /> Polímero
-                  </button>
+              <div className="hidden lg:flex flex-col gap-1">
+                  <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg items-center">
+                      <button 
+                        onClick={() => toggleFanType('cloth')}
+                        className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${fanType === 'cloth' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+                      >
+                        <Layers size={14} className="inline mr-1 mb-0.5" /> Tela
+                      </button>
+                      <button 
+                        onClick={() => toggleFanType('polymer')}
+                        className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${fanType === 'polymer' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+                      >
+                        <Box size={14} className="inline mr-1 mb-0.5" /> Polímero
+                      </button>
+                      <HelpTooltip text="Elige entre abanico de tela tradicional o estructura rígida de polímero." />
+                  </div>
+                  
+                  {/* POLYMER MODEL SELECTOR */}
+                  {fanType === 'polymer' && (
+                      <div className="flex gap-2 animate-fadeIn mt-1">
+                          {POLYMER_MODELS.map(model => (
+                              <button
+                                key={model.id}
+                                onClick={() => handlePolymerModelChange(model.id)}
+                                className={`
+                                  flex-1 px-3 py-2 text-xs rounded-lg border flex items-center justify-center gap-2 transition-all transform hover:scale-105 active:scale-95
+                                  ${selectedPolymerId === model.id 
+                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md font-bold' 
+                                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                  }
+                                `}
+                              >
+                                  {selectedPolymerId === model.id && <Check size={12} strokeWidth={3} />}
+                                  {model.name}
+                              </button>
+                          ))}
+                          <HelpTooltip text="Selecciona la forma de las varillas: Recta o Redondeada." />
+                      </div>
+                  )}
               </div>
            </div>
            
            {/* RIGHT: Actions */}
            <div className="flex items-center gap-1 md:gap-3">
-               <button 
-                 onClick={toggleDarkMode}
-                 className="p-1.5 md:p-2 text-gray-400 hover:text-yellow-500 dark:text-gray-300 dark:hover:text-yellow-400 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-               >
+               <button onClick={toggleDarkMode} className="p-1.5 md:p-2 text-gray-400 hover:text-yellow-500 dark:text-gray-300 dark:hover:text-yellow-400 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
                    {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
                </button>
                
-               <button 
-                 onClick={() => setCurrentView(AppView.ADMIN)}
-                 className="p-1.5 md:p-2 text-gray-400 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition-colors"
-               >
+               <button onClick={() => setCurrentView(AppView.ADMIN)} className="p-1.5 md:p-2 text-gray-400 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition-colors">
                    <Settings size={20} />
                </button>
                
-               <button
-                onClick={handleDownloadImage}
-                className="flex items-center justify-center p-1.5 md:px-3 md:py-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-gray-700 rounded transition-colors"
-                title="Descargar Diseño"
-               >
+               <button onClick={handleDownloadImage} className="flex items-center justify-center p-1.5 md:px-3 md:py-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-gray-700 rounded transition-colors" title="Descargar Diseño">
                    <span className="hidden md:inline text-xs font-bold mr-2">Descargar Diseño</span>
                    <Download size={20} />
                </button>
                
-               <button 
-                onClick={handleProceedToCheckout}
-                className="ml-1 px-3 md:px-6 py-2 bg-gray-900 hover:bg-gray-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white rounded-lg font-bold shadow-md transition-transform active:scale-95 text-[10px] md:text-xs uppercase tracking-wide whitespace-nowrap"
-               >
+               <button onClick={handleProceedToCheckout} className="ml-1 px-3 md:px-6 py-2 bg-gray-900 hover:bg-gray-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white rounded-lg font-bold shadow-md transition-transform active:scale-95 text-[10px] md:text-xs uppercase tracking-wide whitespace-nowrap">
                   Finalizar <span className="hidden md:inline">Diseño</span>
                </button>
            </div>
         </header>
 
         {/* Mobile Mode Switcher (Visible only on small screens) */}
-        <div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-1 px-2 flex justify-center shrink-0 z-10">
-             <div className="flex bg-gray-100 dark:bg-gray-700 p-0.5 rounded-lg w-full max-w-sm">
-                  <button 
-                    onClick={() => toggleFanType('cloth')}
-                    className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded transition-all ${fanType === 'cloth' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}
-                  >
-                     Tela
-                  </button>
-                  <button 
-                    onClick={() => toggleFanType('polymer')}
-                    className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded transition-all ${fanType === 'polymer' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}
-                  >
-                     Polímero
-                  </button>
+        <div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-2 px-2 flex flex-col items-center shrink-0 z-10 gap-2">
+             <div className="flex bg-gray-100 dark:bg-gray-700 p-0.5 rounded-lg w-full max-w-sm items-center">
+                  <button onClick={() => toggleFanType('cloth')} className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded transition-all ${fanType === 'cloth' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}>Tela</button>
+                  <button onClick={() => toggleFanType('polymer')} className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded transition-all ${fanType === 'polymer' ? 'bg-white dark:bg-gray-600 shadow text-indigo-600 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}>Polímero</button>
+                  <HelpTooltip text="Cambia entre abanico de tela o polímero." />
               </div>
+              
+              {/* Mobile Polymer Sub-selector */}
+              {fanType === 'polymer' && (
+                  <div className="flex gap-2 w-full max-w-sm items-center">
+                      {POLYMER_MODELS.map(model => (
+                          <button
+                            key={model.id}
+                            onClick={() => handlePolymerModelChange(model.id)}
+                            className={`flex-1 px-2 py-2 text-[10px] rounded-lg border flex items-center justify-center gap-1 transition-all ${selectedPolymerId === model.id ? 'bg-indigo-600 text-white border-indigo-600 font-bold shadow' : 'bg-white border-gray-200 text-gray-500 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400'}`}
+                          >
+                             {selectedPolymerId === model.id && <Check size={10} strokeWidth={3} />}
+                             {model.name}
+                          </button>
+                      ))}
+                      <HelpTooltip text="Elige la forma de la punta." />
+                  </div>
+              )}
         </div>
 
-        {/* MAIN CANVAS AREA - Fills remaining space in the column */}
+        {/* MAIN CANVAS AREA */}
         <div className="flex-1 relative overflow-hidden bg-gray-100 dark:bg-gray-900 flex flex-col">
-            
-            {/* SOCIAL MEDIA FLOATING BUTTONS (Top Left of Canvas Area) */}
             <div className="absolute top-4 left-4 z-30 flex flex-col gap-2 pointer-events-none md:pointer-events-auto">
                <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-white/90 dark:bg-gray-800/90 px-2 py-1 rounded-md backdrop-blur-sm shadow-sm border border-gray-100 dark:border-gray-700 pointer-events-auto">
                  Si necesitas ayuda contáctanos por nuestras redes sociales
@@ -864,7 +855,7 @@ function App() {
                 onSelectionChange={setSelectedObject}
                 selectedColor={selectedColor}
                 fanPath={clothFanPath}
-                polymerImage={polymerFanImage} // Passed Image base64 or URL
+                polymerImage={polymerFanImage}
                 fanType={fanType}
                 ribColor={ribColor}
                 isDarkMode={isDarkMode}
