@@ -1,0 +1,6 @@
+
+Esta carpeta es para las fuentes locales.
+Por favor, coloca aquí el archivo:
+- TinyAngels.ttf
+
+Git no guarda carpetas vacías, por eso existe este archivo de texto.
