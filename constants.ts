@@ -73,6 +73,7 @@ export const AVAILABLE_FONTS = [
   'Pacifico',         // Divertida
   'Cinzel',           // Clásica / Romana
   'Montserrat',       // Moderna / Geométrica
+  'Tiny Angels',      // Fuente Local Personalizada
   'Courier New',
   'Times New Roman'
 ];
