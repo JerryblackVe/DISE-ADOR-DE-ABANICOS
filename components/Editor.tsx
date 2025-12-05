@@ -203,6 +203,40 @@ const Editor: React.FC<EditorProps> = ({
       opt.e.stopPropagation();
     });
 
+    // --- KEYBOARD SHORTCUTS (DELETE) ---
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (!fabricRef.current) return;
+        const canvas = fabricRef.current;
+
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            // 1. Check if user is typing in an HTML input (like Sidebar inputs)
+            const activeElement = document.activeElement as HTMLElement;
+            if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+                return;
+            }
+
+            const activeObj = canvas.getActiveObject();
+            if (activeObj) {
+                // 2. Check if user is editing text ON the canvas (IText)
+                // @ts-ignore - isEditing exists on IText
+                if (activeObj.isEditing) return;
+
+                // 3. Remove objects
+                const activeObjects = canvas.getActiveObjects();
+                if (activeObjects.length) {
+                    canvas.discardActiveObject();
+                    activeObjects.forEach((obj: any) => {
+                        canvas.remove(obj);
+                    });
+                    canvas.requestRenderAll();
+                    onSelectionChange(null); // Notify parent
+                }
+            }
+        }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
     if (fanType === 'cloth') {
         const geo = getFanGeometry(width, height, fanPath);
 
@@ -445,6 +479,7 @@ const Editor: React.FC<EditorProps> = ({
     setIsReady(true);
 
     return () => {
+      window.removeEventListener('keydown', handleKeyDown);
       resizeObserver.disconnect();
       canvas.dispose();
       fabricRef.current = null;
