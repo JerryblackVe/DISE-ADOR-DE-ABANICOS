@@ -1,10 +1,11 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import Toolbar from './components/Toolbar';
 import Editor from './components/Editor';
 import OrderForm from './components/OrderForm';
 import AdminPanel from './components/AdminPanel';
 import { generatePattern } from './services/geminiService';
-import { Settings, ShoppingBag, Layers, Box, Download, Moon, Sun, Edit3, Check } from 'lucide-react';
+import { Settings, ShoppingBag, Layers, Box, Download, Moon, Sun, Edit3, Check, FileCode, Wrench, ChevronDown, Image as ImageIcon, FileImage } from 'lucide-react';
 import { DEFAULT_FAN_PATH, POLYMER_MODELS, DEFAULT_LOGO, DEFAULT_CLOTH_SVG_URL, SOCIAL_WHATSAPP_ICON, SOCIAL_INSTAGRAM_ICON, GLOBAL_CONFIG } from './constants';
 import { AppView, Order, FanType, CustomFont } from './types';
 import HelpTooltip from './components/HelpTooltip';
@@ -47,6 +48,7 @@ function App() {
   
   // -- MOBILE UI STATE --
   const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
+  const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
   
   // -- PERSISTENT SETTINGS --
   
@@ -93,14 +95,14 @@ function App() {
   // 6. Enabled Modes (Persistent - Prioritize LocalStorage, Fallback to GLOBAL_CONFIG)
   const [enabledModes, setEnabledModes] = useState<{cloth: boolean, polymer: boolean}>(() => {
       try {
-          // Changed key to force reset of visibility settings
-          const saved = localStorage.getItem('fan_modes_visibility_v2');
+          // Changed key to v3 to force reset of visibility settings if they were corrupted or set to false
+          const saved = localStorage.getItem('fan_modes_visibility_v3');
           return saved ? JSON.parse(saved) : GLOBAL_CONFIG.enabledModes;
       } catch(e) { return GLOBAL_CONFIG.enabledModes; }
   });
 
   useEffect(() => {
-      localStorage.setItem('fan_modes_visibility_v2', JSON.stringify(enabledModes));
+      localStorage.setItem('fan_modes_visibility_v3', JSON.stringify(enabledModes));
   }, [enabledModes]);
 
   // INITIALIZATION: Fetch Default Cloth SVG
@@ -109,10 +111,14 @@ function App() {
     const savedTemplate = localStorage.getItem('custom_fan_template');
     const isOldDefault = savedTemplate && savedTemplate.startsWith("M -280");
     
+    // Check if we need to force update (if old default is present) or if no template exists
     if (!savedTemplate || isOldDefault) {
-        console.log("Fetching updated Cloth SVG...");
+        console.log("Fetching default SVG from: ", DEFAULT_CLOTH_SVG_URL);
         fetch(`${DEFAULT_CLOTH_SVG_URL}?t=${Date.now()}`)
-            .then(res => res.text())
+            .then(async (res) => {
+                if(!res.ok) throw new Error("Failed to fetch");
+                return res.text();
+            })
             .then(svgText => {
                 if (!svgText.includes('<svg') && !svgText.includes('<path')) return;
                 const parser = new DOMParser();
@@ -124,7 +130,7 @@ function App() {
                     localStorage.setItem('custom_fan_template', pathData);
                 }
             })
-            .catch(e => console.error("Error fetching cloth SVG:", e));
+            .catch(e => console.error("Error fetching default cloth SVG:", e.message));
     }
   }, []);
 
@@ -160,13 +166,25 @@ function App() {
   // Load Custom Fonts into DOM
   useEffect(() => {
     // 1. Load User-uploaded fonts (localStorage)
-    customFonts.forEach(font => {
-      // @ts-ignore
-      const fontFace = new FontFace(font.name, `url(${font.data})`);
-      fontFace.load().then((loadedFace: any) => {
-        (document.fonts as any).add(loadedFace);
-      }).catch((e: any) => console.error("Error loading font:", font.name, e));
-    });
+    const loadLocalFonts = async () => {
+        // Load explicitly Tiny Angels first if it exists in public
+        try {
+            const font = new FontFace('Tiny Angels', 'url(/fonts/TinyAngels.ttf)');
+            await font.load();
+            document.fonts.add(font);
+        } catch(e) {
+            // Font might not exist locally or error
+        }
+
+        customFonts.forEach(font => {
+            // @ts-ignore
+            const fontFace = new FontFace(font.name, `url(${font.data})`);
+            fontFace.load().then((loadedFace: any) => {
+                (document.fonts as any).add(loadedFace);
+            }).catch((e: any) => console.error("Error loading font:", font.name, e));
+        });
+    };
+    loadLocalFonts();
 
     // 2. Load Auto-Detected fonts from src/fonts
     const loadAutoFonts = async () => {
@@ -267,18 +285,18 @@ function App() {
       setIsDarkMode(!isDarkMode);
   };
 
-  // --- WRAPPER FOR RIB COLOR CHANGE (SYNC IMAGES) ---
+  // --- WRAPPER FOR RIB COLOR CHANGE (SYNC IMAGES & TEXT) ---
   const handleRibColorChange = (newColor: string) => {
       setRibColor(newColor);
       
-      // If in polymer mode, update all existing images to match this color
+      // If in polymer mode, update all existing images AND TEXT to match this color
       if (canvas && fanType === 'polymer') {
           const objects = canvas.getObjects();
           let needsRender = false;
 
           objects.forEach((obj: any) => {
+              // 1. Update Images (Tint)
               if (obj.type === 'image' && obj.data?.id !== 'fan-background' && obj.data?.id !== 'fan-outline') {
-                  // Apply Grayscale + Tint
                   const grayscale = new fabric.Image.filters.Grayscale();
                   const blend = new fabric.Image.filters.BlendColor({
                       color: newColor,
@@ -287,6 +305,11 @@ function App() {
                   });
                   obj.filters = [grayscale, blend];
                   obj.applyFilters();
+                  needsRender = true;
+              }
+              // 2. Update Text (Fill)
+              if (obj.type === 'i-text') {
+                  obj.set('fill', newColor);
                   needsRender = true;
               }
           });
@@ -689,25 +712,60 @@ function App() {
     setCurrentView(AppView.SUCCESS);
   };
 
-  const handleDownloadImage = () => {
+  const handleDownloadImage = (includeTemplate: boolean) => {
       if(!canvas) return;
+      
+      setIsDownloadMenuOpen(false);
+
       const originalBg = canvas.backgroundColor;
-      canvas.backgroundColor = null;
+      
+      // 1. Deselect everything for clean capture
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+
+      // 2. Identify Template Objects
+      const bg = canvas.getObjects().find((o: any) => o.data?.id === 'fan-background');
+      const outline = canvas.getObjects().find((o: any) => o.data?.id === 'fan-outline');
+      
+      const originalBgVisible = bg ? bg.visible : true;
+      const originalOutlineVisible = outline ? outline.visible : true;
+
+      // 3. Hide Template if requested (Elements Only mode)
+      if (!includeTemplate) {
+          if(bg) bg.visible = false;
+          if(outline) outline.visible = false;
+          canvas.backgroundColor = null; // Transparent background
+      } else {
+          canvas.backgroundColor = null; // Still keep png transparent around the fan
+      }
+      
       canvas.renderAll();
 
+      // 4. Generate High-Res Image (4x multiplier for ~300ppi)
       const dataURL = canvas.toDataURL({
           format: 'png',
           quality: 1,
-          multiplier: 3,
+          multiplier: 4,
           enableRetinaScaling: true
       });
 
-      canvas.backgroundColor = originalBg;
-      canvas.renderAll();
+      // 5. Restore Visibility
+      if (!includeTemplate) {
+          if(bg) bg.visible = originalBgVisible;
+          if(outline) outline.visible = originalOutlineVisible;
+          canvas.backgroundColor = originalBg;
+      } else {
+          canvas.backgroundColor = originalBg;
+      }
+      
+      canvas.requestRenderAll();
 
+      // 6. Download Trigger
       const link = document.createElement('a');
       link.href = dataURL;
-      link.download = `Abanico_Diseno_${Date.now()}.png`;
+      link.download = includeTemplate 
+        ? `Abanico_Completo_${Date.now()}.png` 
+        : `Diseno_Solo_${Date.now()}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -932,11 +990,44 @@ function App() {
                <button onClick={() => setCurrentView(AppView.ADMIN)} className="p-1.5 md:p-2 text-gray-400 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition-colors">
                    <Settings size={20} />
                </button>
-               
-               <button onClick={handleDownloadImage} className="flex items-center justify-center p-1.5 md:px-3 md:py-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-gray-700 rounded transition-colors" title="Descargar Diseño">
-                   <span className="hidden md:inline text-xs font-bold mr-2">Descargar Diseño</span>
-                   <Download size={20} />
-               </button>
+
+               {/* DOWNLOAD DROPDOWN */}
+               <div className="relative">
+                   <button 
+                       onClick={() => setIsDownloadMenuOpen(!isDownloadMenuOpen)} 
+                       className="flex items-center justify-center p-1.5 md:px-3 md:py-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-gray-700 rounded transition-colors group" 
+                       title="Opciones de Descarga"
+                   >
+                       <span className="hidden md:inline text-xs font-bold mr-2">Descargar</span>
+                       <Download size={20} />
+                       <ChevronDown size={14} className={`ml-1 transition-transform ${isDownloadMenuOpen ? 'rotate-180' : ''}`} />
+                   </button>
+
+                   {isDownloadMenuOpen && (
+                       <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden animate-fadeIn">
+                           <div className="p-2 space-y-1">
+                               <button 
+                                   onClick={() => handleDownloadImage(true)}
+                                   className="w-full flex items-center px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                               >
+                                   <ImageIcon size={16} className="mr-2 text-indigo-500" />
+                                   Diseño Completo
+                               </button>
+                               <button 
+                                   onClick={() => handleDownloadImage(false)}
+                                   className="w-full flex items-center px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                               >
+                                   <FileImage size={16} className="mr-2 text-indigo-500" />
+                                   Solo Diseño (PNG)
+                               </button>
+                           </div>
+                       </div>
+                   )}
+                   {/* Backdrop to close menu */}
+                   {isDownloadMenuOpen && (
+                       <div className="fixed inset-0 z-40" onClick={() => setIsDownloadMenuOpen(false)}></div>
+                   )}
+               </div>
                
                <button onClick={handleProceedToCheckout} className="ml-1 px-3 md:px-6 py-2 bg-gray-900 hover:bg-gray-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white rounded-lg font-bold shadow-md transition-transform active:scale-95 text-[10px] md:text-xs uppercase tracking-wide whitespace-nowrap">
                   Finalizar <span className="hidden md:inline">Diseño</span>
@@ -979,7 +1070,10 @@ function App() {
 
         {/* MAIN CANVAS AREA */}
         <div className="flex-1 relative overflow-hidden bg-gray-100 dark:bg-gray-900 flex flex-col">
-            <div className="absolute top-4 left-4 z-30 flex flex-col gap-2 pointer-events-none md:pointer-events-auto">
+            <div className={`absolute z-30 flex flex-col gap-2 pointer-events-none md:pointer-events-auto transition-all duration-300
+                top-4 left-4 
+                md:bottom-4 md:top-auto md:left-4
+            `}>
                <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-white/90 dark:bg-gray-800/90 px-2 py-1 rounded-md backdrop-blur-sm shadow-sm border border-gray-100 dark:border-gray-700 pointer-events-auto">
                  Si necesitas ayuda contáctanos por nuestras redes sociales
                </span>

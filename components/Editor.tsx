@@ -33,6 +33,9 @@ const Editor: React.FC<EditorProps> = ({
   const [isReady, setIsReady] = useState(false);
   const [isImageLoading, setIsImageLoading] = useState(false);
   const saveTimeoutRef = useRef<any>(null);
+  
+  // Ref to store the generated Polymer Mask (Silhouette) for clipping
+  const polymerMaskRef = useRef<any>(null);
 
   // Helper to calculate fan geometry based on current canvas size
   const getFanGeometry = (canvasWidth: number, canvasHeight: number, pathData: string) => {
@@ -40,9 +43,9 @@ const Editor: React.FC<EditorProps> = ({
     const pathWidth = tempPath.width || 560;
     const pathHeight = tempPath.height || 280;
 
-    // Scale 0.9 for Cloth (Vectors)
-    const scaleX = (canvasWidth * 0.9) / pathWidth;
-    const scaleY = (canvasHeight * 0.9) / pathHeight;
+    // Scale 0.95 for Cloth (Vectors) - Maximize size
+    const scaleX = (canvasWidth * 0.95) / pathWidth;
+    const scaleY = (canvasHeight * 0.95) / pathHeight;
     const scale = Math.min(scaleX, scaleY);
 
     const left = canvasWidth / 2;
@@ -117,8 +120,8 @@ const Editor: React.FC<EditorProps> = ({
               if (json.objects && json.objects.length > 0) {
                   fabric.util.enlivenObjects(json.objects, (objs: any[]) => {
                       objs.forEach((obj) => {
-                          // Re-apply clipping if needed (Cloth mode handles this via object:added, but we ensure it here)
                           canvas.add(obj);
+                          // Clipping is re-applied in 'object:added' event
                       });
                       canvas.requestRenderAll();
                   });
@@ -129,8 +132,8 @@ const Editor: React.FC<EditorProps> = ({
       }
   };
 
-  // Function to process PNG pixels and split into Frame (Red/Black) and Background (Others)
-  const processPolymerImage = (base64Img: string): Promise<{ frameImg: any, bgImg: any }> => {
+  // Function to process PNG pixels and split into Frame, Background AND MASK
+  const processPolymerImage = (base64Img: string): Promise<{ frameImg: any, bgImg: any, maskImg: any }> => {
       return new Promise((resolve, reject) => {
           const img = new Image();
           img.crossOrigin = 'anonymous';
@@ -157,6 +160,8 @@ const Editor: React.FC<EditorProps> = ({
               const frameData = new Uint8ClampedArray(totalPixels);
               // Buffer for Background
               const bgData = new Uint8ClampedArray(totalPixels);
+              // Buffer for CLIPPING MASK (Silhouette)
+              const maskData = new Uint8ClampedArray(totalPixels);
 
               for(let i=0; i < totalPixels; i+=4) {
                   const r = imgData.data[i];
@@ -166,23 +171,20 @@ const Editor: React.FC<EditorProps> = ({
 
                   if (a < 50) continue; // Skip transparent pixels
 
-                  // ROBUST LOGIC 2.0:
-                  // ATTRAPA-TODO approach:
-                  // If it's visible:
-                  // Is it Frame? (Reddish or Blackish)
-                  // If not Frame -> It is Background (Yellow/Any other color)
-                  
-                  // Red Detection (R > G and R > B significant margin)
-                  const isRed = (r > g + 30) && (r > b + 30);
-                  
-                  // Dark/Black Detection (Low RGB values)
-                  const isDark = (r < 60 && g < 60 && b < 60);
+                  // Generate Mask: Any visible pixel becomes opaque black
+                  maskData[i] = 0; maskData[i+1] = 0; maskData[i+2] = 0; maskData[i+3] = 255;
+
+                  // Frame vs Background Logic (Improved Tolerance)
+                  // Redish or Darkish pixels = Frame
+                  // Everything else = Background
+                  const isRed = (r > g + 20) && (r > b + 20); // Lowered tolerance
+                  const isDark = (r < 80 && g < 80 && b < 80); // Increased dark threshold
 
                   if (isRed || isDark) {
                       // It's the Frame/Ribs
                       frameData[i] = r; frameData[i+1] = g; frameData[i+2] = b; frameData[i+3] = a;
                   } else {
-                      // It's the Background (Wings) - Everything else
+                      // It's the Background (Wings)
                       bgData[i] = r; bgData[i+1] = g; bgData[i+2] = b; bgData[i+3] = a;
                   }
               }
@@ -198,8 +200,9 @@ const Editor: React.FC<EditorProps> = ({
 
               const frameObj = createFabImg(frameData);
               const bgObj = createFabImg(bgData);
+              const maskObj = createFabImg(maskData);
 
-              resolve({ frameImg: frameObj, bgImg: bgObj });
+              resolve({ frameImg: frameObj, bgImg: bgObj, maskImg: maskObj });
           }
           img.onerror = () => {
               setIsImageLoading(false); 
@@ -232,53 +235,42 @@ const Editor: React.FC<EditorProps> = ({
 
     fabricRef.current = canvas;
 
-    // --- MOUSE WHEEL ZOOM LOGIC ---
+    // --- ZOOM & PAN LOGIC ---
     canvas.on('mouse:wheel', (opt: any) => {
       const delta = opt.e.deltaY;
       let zoom = canvas.getZoom();
-      
-      // Calculate new zoom factor
       zoom *= 0.999 ** delta;
-      
-      // Clamp values (same as manual controls)
       if (zoom > 3) zoom = 3;
       if (zoom < 0.5) zoom = 0.5;
-      
-      // Zoom relative to mouse pointer
       canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
-      
       opt.e.preventDefault();
       opt.e.stopPropagation();
     });
 
-    // --- PANNING (Middle Mouse Button) ---
     let isDragging = false;
     let lastPosX = 0;
     let lastPosY = 0;
 
     canvas.on('mouse:down', (opt: any) => {
-        const evt = opt.e;
-        // Button 1 is Middle Mouse (Wheel click)
-        if (evt.button === 1) {
+        if (opt.e.button === 1) {
             isDragging = true;
-            canvas.selection = false; // Disable standard selection
-            lastPosX = evt.clientX;
-            lastPosY = evt.clientY;
+            canvas.selection = false;
+            lastPosX = opt.e.clientX;
+            lastPosY = opt.e.clientY;
             canvas.defaultCursor = 'grabbing'; 
-            evt.preventDefault(); // Prevent default browser scroll
+            opt.e.preventDefault();
         }
     });
 
     canvas.on('mouse:move', (opt: any) => {
         if (isDragging) {
-            const evt = opt.e;
             const vpt = canvas.viewportTransform;
-            vpt[4] += evt.clientX - lastPosX;
-            vpt[5] += evt.clientY - lastPosY;
+            vpt[4] += opt.e.clientX - lastPosX;
+            vpt[5] += opt.e.clientY - lastPosY;
             canvas.requestRenderAll();
-            lastPosX = evt.clientX;
-            lastPosY = evt.clientY;
-            evt.preventDefault();
+            lastPosX = opt.e.clientX;
+            lastPosY = opt.e.clientY;
+            opt.e.preventDefault();
         }
     });
 
@@ -291,44 +283,30 @@ const Editor: React.FC<EditorProps> = ({
         }
     });
 
-    // --- KEYBOARD SHORTCUTS (DELETE) ---
+    // --- KEYBOARD DELETE ---
     const handleKeyDown = (e: KeyboardEvent) => {
         if (!fabricRef.current) return;
         const canvas = fabricRef.current;
-
         if (e.key === 'Delete' || e.key === 'Backspace') {
-            // 1. Check if user is typing in an HTML input (like Sidebar inputs)
             const activeElement = document.activeElement as HTMLElement;
-            if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
-                return;
-            }
-
+            if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) return;
             const activeObj = canvas.getActiveObject();
-            if (activeObj) {
-                // 2. Check if user is editing text ON the canvas (IText)
-                // @ts-ignore - isEditing exists on IText
-                if (activeObj.isEditing) return;
-
-                // 3. Remove objects
+            if (activeObj && !activeObj.isEditing) {
                 const activeObjects = canvas.getActiveObjects();
                 if (activeObjects.length) {
                     canvas.discardActiveObject();
-                    activeObjects.forEach((obj: any) => {
-                        canvas.remove(obj);
-                    });
+                    activeObjects.forEach((obj: any) => canvas.remove(obj));
                     canvas.requestRenderAll();
-                    onSelectionChange(null); // Notify parent
+                    onSelectionChange(null);
                 }
             }
         }
     };
-
     window.addEventListener('keydown', handleKeyDown);
 
-    // --- ATTACH SAVE LISTENERS ---
+    // --- PERSISTENCE LISTENERS ---
     canvas.on('object:modified', debouncedSave);
     canvas.on('object:added', (e: any) => {
-        // Skip saving when initial template parts are added
         if (e.target?.data?.id !== 'fan-background' && e.target?.data?.id !== 'fan-outline') {
             debouncedSave();
         }
@@ -336,6 +314,7 @@ const Editor: React.FC<EditorProps> = ({
     canvas.on('object:removed', debouncedSave);
 
 
+    // --- RENDER LOGIC ---
     if (fanType === 'cloth') {
         const geo = getFanGeometry(width, height, fanPath);
 
@@ -383,97 +362,87 @@ const Editor: React.FC<EditorProps> = ({
         canvas.add(outline);
         canvas.bringToFront(outline);
         
-        // LOAD SAVED DESIGN FOR CLOTH
         loadUserDesign(canvas);
 
     } else {
-        // --- POLYMER PNG LOGIC ---
-        if (!polymerImage) return;
+        // --- POLYMER MODE ---
+        if (polymerImage) {
+            setIsImageLoading(true);
+            processPolymerImage(polymerImage).then(({ frameImg, bgImg, maskImg }) => {
+                if (!fabricRef.current) return;
+                
+                const currentW = canvas.getWidth();
+                const currentH = canvas.getHeight();
+                
+                const imgW = frameImg.width || 100;
+                const imgH = frameImg.height || 100;
+                
+                // Scale 0.75 for Polymer - Safe margin
+                const scaleX = (currentW * 0.75) / imgW;
+                const scaleY = (currentH * 0.75) / imgH;
+                const scale = Math.min(scaleX, scaleY);
 
-        setIsImageLoading(true);
+                // Setup geometry properties for all layers
+                const commonProps = {
+                    originX: 'center',
+                    originY: 'center',
+                    scaleX: scale,
+                    scaleY: scale,
+                    selectable: false,
+                    evented: false,
+                    absolutePositioned: true // CRITICAL for clipping
+                };
 
-        processPolymerImage(polymerImage).then(({ frameImg, bgImg }) => {
-            if (!fabricRef.current) return; // Guard if unmounted
-            
-            // Get CURRENT canvas dimensions (Logical)
-            const currentW = canvas.getWidth();
-            const currentH = canvas.getHeight();
-            
-            // Calculate scale to fit (0.75 for safe margin)
-            const imgW = frameImg.width || 100;
-            const imgH = frameImg.height || 100;
-            
-            const scaleX = (currentW * 0.75) / imgW;
-            const scaleY = (currentH * 0.75) / imgH;
-            const scale = Math.min(scaleX, scaleY);
+                // 1. Background
+                bgImg.set({ ...commonProps, data: { id: 'fan-background' } });
+                
+                const bgBlend = new fabric.Image.filters.BlendColor({
+                    color: selectedColor, mode: 'tint', alpha: 1
+                });
+                bgImg.filters = [new fabric.Image.filters.Grayscale(), bgBlend];
+                bgImg.applyFilters();
+                
+                canvas.add(bgImg);
+                canvas.centerObject(bgImg);
+                canvas.sendToBack(bgImg);
 
-            // Configure Background (The Yellow part)
-            bgImg.set({
-                originX: 'center',
-                originY: 'center',
-                scaleX: scale,
-                scaleY: scale,
-                selectable: false,
-                evented: false,
-                data: { id: 'fan-background' }
+                // 2. Frame
+                frameImg.set({ ...commonProps, data: { id: 'fan-outline' } });
+                
+                const frameBlend = new fabric.Image.filters.BlendColor({
+                    color: ribColor, mode: 'tint', alpha: 1
+                });
+                frameImg.filters = [new fabric.Image.filters.Grayscale(), frameBlend];
+                frameImg.applyFilters();
+
+                canvas.add(frameImg);
+                canvas.centerObject(frameImg);
+                canvas.bringToFront(frameImg);
+
+                // 3. Store Mask for User Objects
+                maskImg.set({ ...commonProps });
+                // Note: We don't center maskImg yet, we wait for 'object:added' or resize
+                polymerMaskRef.current = maskImg;
+                
+                setIsImageLoading(false);
+                canvas.requestRenderAll();
+                loadUserDesign(canvas);
+                
+            }).catch(e => {
+                console.error(e);
+                setIsImageLoading(false);
             });
-            
-            // Apply initial color to background
-            const bgBlend = new fabric.Image.filters.BlendColor({
-                color: selectedColor,
-                mode: 'tint',
-                alpha: 1
-            });
-            const grayscale = new fabric.Image.filters.Grayscale();
-            bgImg.filters = [grayscale, bgBlend];
-            bgImg.applyFilters();
-            
-            canvas.add(bgImg);
-            canvas.centerObject(bgImg); // Native centering
-            canvas.sendToBack(bgImg);
-
-            // Configure Frame (The Red part)
-            frameImg.set({
-                originX: 'center',
-                originY: 'center',
-                scaleX: scale,
-                scaleY: scale,
-                selectable: false,
-                evented: false,
-                data: { id: 'fan-outline' }
-            });
-
-            // Apply initial color to frame
-            const frameBlend = new fabric.Image.filters.BlendColor({
-                color: ribColor,
-                mode: 'tint',
-                alpha: 1
-            });
-            frameImg.filters = [grayscale, frameBlend];
-            frameImg.applyFilters();
-
-            canvas.add(frameImg);
-            canvas.centerObject(frameImg); // Native centering
-            canvas.bringToFront(frameImg);
-            
-            setIsImageLoading(false);
-            canvas.requestRenderAll();
-
-            // LOAD SAVED DESIGN FOR POLYMER
-            loadUserDesign(canvas);
-            
-        }).catch(e => {
-            console.error(e);
-            setIsImageLoading(false);
-        });
+        }
     }
 
+    // --- APPLY CLIPPING TO NEW OBJECTS ---
     canvas.on('object:added', (e: any) => {
        const obj = e.target;
        if (!obj || !canvas) return;
-       
+       if (obj.data?.id === 'fan-background' || obj.data?.id === 'fan-outline' || obj.type === 'selection') return;
+
        if (fanType === 'cloth') {
-           if (!obj.clipPath && obj.data?.id !== 'fan-background' && obj.data?.id !== 'fan-outline' && obj.type !== 'selection') {
+           if (!obj.clipPath) {
               const currentW = canvas.width;
               const currentH = canvas.height;
               const currentGeo = getFanGeometry(currentW!, currentH!, fanPath);
@@ -488,6 +457,29 @@ const Editor: React.FC<EditorProps> = ({
                  scaleY: currentGeo.scale,
               });
            }
+       } else if (fanType === 'polymer') {
+           // Apply Polymer Mask (Silhouette)
+           if (polymerMaskRef.current) {
+               // Find the background object to sync coordinates perfectly
+               const bg = canvas.getObjects().find((o: any) => o.data?.id === 'fan-background');
+               
+               if (bg) {
+                   // Ensure the mask matches the background EXACTLY
+                   polymerMaskRef.current.clone((cloned: any) => {
+                       cloned.set({
+                           left: bg.left,
+                           top: bg.top,
+                           scaleX: bg.scaleX,
+                           scaleY: bg.scaleY,
+                           absolutePositioned: true, // CRITICAL: Makes mask static relative to canvas
+                           originX: 'center',
+                           originY: 'center'
+                       });
+                       obj.clipPath = cloned;
+                       canvas.requestRenderAll();
+                   });
+               }
+           }
        }
     });
 
@@ -495,6 +487,7 @@ const Editor: React.FC<EditorProps> = ({
     canvas.on('selection:updated', (e: any) => onSelectionChange(e.selected[0]));
     canvas.on('selection:cleared', () => onSelectionChange(null));
 
+    // --- RESIZE LOGIC ---
     const handleResize = () => {
         if(!containerRef.current || !fabricRef.current) return;
         
@@ -502,11 +495,11 @@ const Editor: React.FC<EditorProps> = ({
         const newH = containerRef.current.offsetHeight;
         const canvas = fabricRef.current;
         
-        let refObj = canvas.getObjects().find((o: any) => o.data?.id === 'fan-outline');
-        if (!refObj) refObj = canvas.getObjects().find((o: any) => o.data?.id === 'fan-background');
-        
         canvas.setWidth(newW);
         canvas.setHeight(newH);
+        
+        let refObj = canvas.getObjects().find((o: any) => o.data?.id === 'fan-outline');
+        if (!refObj) refObj = canvas.getObjects().find((o: any) => o.data?.id === 'fan-background');
         
         if (!refObj) {
             canvas.requestRenderAll();
@@ -520,26 +513,20 @@ const Editor: React.FC<EditorProps> = ({
             const geo = getFanGeometry(newW, newH, fanPath);
             newScale = geo.scale;
             
-            // Re-apply to all objects
             canvas.getObjects().forEach((obj: any) => {
-                // Background & Outline handled by Geometry
-                if (obj.data?.id === 'fan-background') {
-                     obj.set({ width: newW, height: newH });
+                // Resize Background/Outline
+                if (obj.data?.id === 'fan-background' || obj.data?.id === 'fan-outline') {
+                     if (obj.data?.id === 'fan-background') obj.set({ width: newW, height: newH });
+                     if (obj.data?.id === 'fan-outline') obj.set({ left: geo.left, top: geo.top, scaleX: geo.scale, scaleY: geo.scale });
+                     
                      if (obj.clipPath) {
                          obj.clipPath.set({ left: geo.left, top: geo.top, scaleX: geo.scale, scaleY: geo.scale });
                          obj.clipPath.setCoords();
                      }
                      return;
                 }
-                if (obj.data?.id === 'fan-outline') {
-                    obj.set({ left: geo.left, top: geo.top, scaleX: geo.scale, scaleY: geo.scale });
-                    obj.setCoords();
-                    return;
-                }
                 
-                // For user content
-                const sFactor = newScale / oldScale;
-                
+                // Resize User Objects ClipPaths
                 if (obj.clipPath) {
                     obj.clipPath.set({ left: geo.left, top: geo.top, scaleX: geo.scale, scaleY: geo.scale });
                     obj.clipPath.setCoords();
@@ -547,18 +534,28 @@ const Editor: React.FC<EditorProps> = ({
             });
 
         } else {
-             // Polymer (Image) resizing
+             // Polymer Resizing
              const imgW = refObj.width!;
              const imgH = refObj.height!;
              const scaleX = (newW * 0.75) / imgW;
              const scaleY = (newH * 0.75) / imgH;
              newScale = Math.min(scaleX, scaleY);
              
+             // Update Reference Mask dimensions logic is handled in object loop below
+             
              canvas.getObjects().forEach((obj: any) => {
+                 // Background/Frame
                  if (obj.data?.id === 'fan-background' || obj.data?.id === 'fan-outline') {
                      obj.set({ scaleX: newScale, scaleY: newScale });
                      canvas.centerObject(obj);
                      obj.setCoords();
+                 }
+                 // User Objects ClipPaths
+                 else if (obj.clipPath) {
+                     obj.clipPath.set({ scaleX: newScale, scaleY: newScale });
+                     obj.clipPath.left = newW / 2;
+                     obj.clipPath.top = newH / 2;
+                     obj.clipPath.setCoords();
                  }
              });
         }
@@ -577,7 +574,6 @@ const Editor: React.FC<EditorProps> = ({
         resizeObserver.observe(containerRef.current);
     }
 
-    // Initial resize trigger
     setTimeout(() => handleResize(), 200);
 
     onCanvasReady(canvas);
@@ -591,26 +587,21 @@ const Editor: React.FC<EditorProps> = ({
     };
   }, [fanPath, fanType, polymerImage]); 
 
-  // Update Polymer Rib Colors (Frame)
+  // Update Polymer Rib Colors
   useEffect(() => {
       if (!fabricRef.current || fanType !== 'polymer') return;
       const canvas = fabricRef.current;
       const frame = canvas.getObjects().find((o: any) => o.data?.id === 'fan-outline');
-      
       if (frame) {
           const grayscale = new fabric.Image.filters.Grayscale();
-          const blend = new fabric.Image.filters.BlendColor({
-              color: ribColor,
-              mode: 'tint',
-              alpha: 1
-          });
+          const blend = new fabric.Image.filters.BlendColor({ color: ribColor, mode: 'tint', alpha: 1 });
           frame.filters = [grayscale, blend];
           frame.applyFilters();
           canvas.requestRenderAll();
       }
   }, [ribColor, fanType]);
 
-  // Update Background Colors (Cloth & Polymer)
+  // Update Background Colors
   useEffect(() => {
     if (!fabricRef.current) return;
     const canvas = fabricRef.current;
@@ -619,13 +610,8 @@ const Editor: React.FC<EditorProps> = ({
         if (fanType === 'cloth') {
              bg.set('fill', selectedColor);
         } else {
-             // Polymer Background Image
              const grayscale = new fabric.Image.filters.Grayscale();
-             const blend = new fabric.Image.filters.BlendColor({
-                color: selectedColor,
-                mode: 'tint',
-                alpha: 1
-            });
+             const blend = new fabric.Image.filters.BlendColor({ color: selectedColor, mode: 'tint', alpha: 1 });
             bg.filters = [grayscale, blend];
             bg.applyFilters();
         }
@@ -641,7 +627,6 @@ const Editor: React.FC<EditorProps> = ({
       >
         <canvas ref={canvasRef} />
         
-        {/* Loading Spinner */}
         {(!isReady || isImageLoading) && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-800/80 z-20 backdrop-blur-sm">
                 <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2"></div>
@@ -651,7 +636,6 @@ const Editor: React.FC<EditorProps> = ({
             </div>
         )}
 
-        {/* COMING SOON OVERLAY FOR CLOTH MODE */}
         {fanType === 'cloth' && isReady && (
             <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md pointer-events-none">
                 <h2 className="text-4xl md:text-5xl font-serif font-bold text-white drop-shadow-lg text-center px-4">Próximamente</h2>
@@ -659,7 +643,6 @@ const Editor: React.FC<EditorProps> = ({
             </div>
         )}
         
-        {/* Zoom Controls */}
         <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
             <button onClick={() => handleZoom(0.1)} className="p-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Acercar">
                 <ZoomIn size={20} />

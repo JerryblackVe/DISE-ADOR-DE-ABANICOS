@@ -343,11 +343,23 @@ const Toolbar: React.FC<ToolbarProps> = ({
                  </div>
 
                  <div className="space-y-4">
-                    <ActionColorPicker 
-                        label="Color de Texto"
-                        initialColor={selectedObject.fill as string}
-                        onApply={(c) => onUpdateObject('fill', c)}
-                    />
+                    {fanType === 'cloth' ? (
+                        <ActionColorPicker 
+                            label="Color de Texto"
+                            initialColor={selectedObject.fill as string}
+                            onApply={(c) => onUpdateObject('fill', c)}
+                        />
+                    ) : (
+                        <div className="mb-2 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                           <p className="text-xs text-gray-600 dark:text-gray-300 font-medium flex items-center">
+                               <Pipette size={12} className="mr-1.5 text-indigo-500"/>
+                               Color enlazado al marco
+                           </p>
+                           <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                               En abanicos de polímero, el texto siempre coincide con el color de las varillas.
+                           </p>
+                        </div>
+                    )}
                     
                     <div>
                         <ActionColorPicker 

@@ -12,8 +12,8 @@ const compressForEmail = (base64Str: string): Promise<string> => {
         img.src = base64Str;
         img.onload = () => {
             const canvas = document.createElement('canvas');
-            // Aggressive resize for thumbnail email
-            const maxWidth = 300; 
+            // Aggressive resize for thumbnail email to ensure it fits < 50KB
+            const maxWidth = 250; 
             let width = img.width;
             let height = img.height;
 
@@ -32,8 +32,8 @@ const compressForEmail = (base64Str: string): Promise<string> => {
                 ctx.drawImage(img, 0, 0, width, height);
             }
             
-            // Export as Low Quality JPEG to fit in ~40-50KB text limit
-            resolve(canvas.toDataURL('image/jpeg', 0.3));
+            // Export as Very Low Quality JPEG to fit in ~40-50KB text limit
+            resolve(canvas.toDataURL('image/jpeg', 0.2));
         };
         img.onerror = () => resolve(''); 
     });
@@ -71,10 +71,13 @@ const OrderForm: React.FC<OrderFormProps> = ({ previewImage, designDetails, onSu
         // Compress image for email transport
         const compressedImage = await compressForEmail(previewImage);
         
-        // Check approximate size (Base64 length * 0.75 = bytes)
-        const sizeInBytes = compressedImage.length * 0.75;
-        const sizeInKb = sizeInBytes / 1024;
-        console.log(`Email Image Size: ~${sizeInKb.toFixed(2)} KB`);
+        // Strict check: EmailJS limit is 50KB.
+        // Base64 string length roughly: Bytes * 1.33. 
+        // 50KB = 51200 bytes. Safe limit for string length is around 50,000 chars.
+        // We use 48,000 to be safe.
+        const isTooBig = compressedImage.length > 48000;
+        
+        console.log(`Email Image Length: ${compressedImage.length} chars. Too big? ${isTooBig}`);
 
         const templateParams = {
             time: new Date().toLocaleString(),
@@ -87,7 +90,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ previewImage, designDetails, onSu
             telefono: formData.phone,
             direccion_envio: formData.address,
             notas: formData.notes || 'Sin notas adicionales',
-            design_image: sizeInKb < 50 ? compressedImage : 'Imagen demasiado grande para envío automático.' 
+            design_image: isTooBig ? "Imagen demasiado pesada para envío automático." : compressedImage 
         };
 
         await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY);
@@ -98,9 +101,9 @@ const OrderForm: React.FC<OrderFormProps> = ({ previewImage, designDetails, onSu
     } catch (error: any) {
         console.error('Email failed:', error);
         
-        // If error is 413 (Too Large), try sending without image
+        // Fallback: If error indicates size issues, try sending without image text
         if (error.status === 413 || (error.text && error.text.includes('Variables size limit'))) {
-             const confirmSend = window.confirm("La imagen del diseño es muy pesada para enviarla por correo automático. ¿Deseas enviar el pedido solo con los datos de texto?");
+             const confirmSend = window.confirm("La imagen de referencia es muy pesada para el sistema de correo. ¿Deseas enviar el pedido solo con los datos de texto?");
              if (confirmSend) {
                  try {
                      const paramsNoImg = {
@@ -112,7 +115,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ previewImage, designDetails, onSu
                         resumen_diseno: designDetails.colors,
                         nombre_completo: formData.name,
                         direccion_envio: formData.address,
-                        design_image: "Imagen no adjunta (Excede límite de tamaño)"
+                        design_image: "Imagen no adjunta (Excedió límite)"
                      };
                      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, paramsNoImg, EMAILJS_PUBLIC_KEY);
                      onSubmit(formData);
@@ -156,7 +159,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ previewImage, designDetails, onSu
                 </div>
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg flex items-start gap-2 text-xs text-blue-700 dark:text-blue-300">
                     <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                    <span>La imagen en el correo será una miniatura de referencia. Descarga el diseño en alta calidad antes de cerrar.</span>
+                    <span>La imagen en el correo será una miniatura de referencia de baja calidad. Descarga el diseño en alta calidad antes de cerrar.</span>
                 </div>
               </div>
             </div>
