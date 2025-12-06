@@ -5,7 +5,7 @@ import {
   Undo, Redo, Layers, PaintBucket,
   AlertCircle, Upload,
   ArrowUpFromLine, ArrowDownToLine,
-  Grid, Pipette, Zap, Minus, ChevronDown
+  Grid, Pipette, Zap, Minus, ChevronDown, RotateCcw
 } from 'lucide-react';
 import { AVAILABLE_FONTS, COMMON_COLORS, FLUO_COLORS } from '../constants';
 import { FanType, CustomFont } from '../types';
@@ -31,8 +31,9 @@ interface ToolbarProps {
   ribColor: string;
   onMatchRibColor: () => void;
   customFonts?: CustomFont[];
-  autoLoadedFonts?: string[]; // New prop for fonts from src/fonts
+  autoLoadedFonts?: string[]; 
   onClose?: () => void;
+  onResetDesign: () => void; // New prop for resetting design
 }
 
 // Internal component to enforce "Select -> Apply" workflow
@@ -102,7 +103,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onMatchRibColor,
   customFonts = [],
   autoLoadedFonts = [],
-  onClose
+  onClose,
+  onResetDesign
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fontFileInputRef = useRef<HTMLInputElement>(null);
@@ -182,6 +184,19 @@ const Toolbar: React.FC<ToolbarProps> = ({
         {/* Global Tools (Add Items) */}
         {!selectedObject && (
           <div className="space-y-6 animate-fadeIn pb-12">
+            
+            {/* RESET BUTTON */}
+            <button 
+                onClick={() => {
+                    if(window.confirm('¿Estás seguro de que quieres borrar todo el diseño y empezar de cero?')) {
+                        onResetDesign();
+                    }
+                }}
+                className="w-full flex items-center justify-center p-3 mb-2 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/20 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors text-xs font-bold"
+            >
+                <RotateCcw size={14} className="mr-2" /> Reiniciar Diseño
+            </button>
+
             {/* Action Buttons */}
             <div className="grid grid-cols-2 gap-3">
               <button 

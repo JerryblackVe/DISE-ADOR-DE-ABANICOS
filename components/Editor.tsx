@@ -32,6 +32,7 @@ const Editor: React.FC<EditorProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
   const [isImageLoading, setIsImageLoading] = useState(false);
+  const saveTimeoutRef = useRef<any>(null);
 
   // Helper to calculate fan geometry based on current canvas size
   const getFanGeometry = (canvasWidth: number, canvasHeight: number, pathData: string) => {
@@ -84,6 +85,49 @@ const Editor: React.FC<EditorProps> = ({
         });
     }
   }, [isDarkMode]);
+
+  // --- PERSISTENCE HELPERS ---
+  const saveDesign = () => {
+      if (!fabricRef.current) return;
+      const canvas = fabricRef.current;
+      
+      // Filter out background and outline, save only user content
+      const json = canvas.toDatalessJSON(['id', 'data', 'selectable', 'evented']);
+      json.objects = json.objects.filter((obj: any) => 
+          obj.data?.id !== 'fan-background' && obj.data?.id !== 'fan-outline'
+      );
+
+      const key = `saved_design_${fanType}`;
+      localStorage.setItem(key, JSON.stringify(json));
+  };
+
+  const debouncedSave = () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(() => {
+          saveDesign();
+      }, 500); // Save after 500ms of inactivity
+  };
+
+  const loadUserDesign = (canvas: any) => {
+      const key = `saved_design_${fanType}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+          try {
+              const json = JSON.parse(saved);
+              if (json.objects && json.objects.length > 0) {
+                  fabric.util.enlivenObjects(json.objects, (objs: any[]) => {
+                      objs.forEach((obj) => {
+                          // Re-apply clipping if needed (Cloth mode handles this via object:added, but we ensure it here)
+                          canvas.add(obj);
+                      });
+                      canvas.requestRenderAll();
+                  });
+              }
+          } catch (e) {
+              console.error("Error loading saved design", e);
+          }
+      }
+  };
 
   // Function to process PNG pixels and split into Frame (Red/Black) and Background (Others)
   const processPolymerImage = (base64Img: string): Promise<{ frameImg: any, bgImg: any }> => {
@@ -281,6 +325,17 @@ const Editor: React.FC<EditorProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
 
+    // --- ATTACH SAVE LISTENERS ---
+    canvas.on('object:modified', debouncedSave);
+    canvas.on('object:added', (e: any) => {
+        // Skip saving when initial template parts are added
+        if (e.target?.data?.id !== 'fan-background' && e.target?.data?.id !== 'fan-outline') {
+            debouncedSave();
+        }
+    });
+    canvas.on('object:removed', debouncedSave);
+
+
     if (fanType === 'cloth') {
         const geo = getFanGeometry(width, height, fanPath);
 
@@ -327,6 +382,9 @@ const Editor: React.FC<EditorProps> = ({
         });
         canvas.add(outline);
         canvas.bringToFront(outline);
+        
+        // LOAD SAVED DESIGN FOR CLOTH
+        loadUserDesign(canvas);
 
     } else {
         // --- POLYMER PNG LOGIC ---
@@ -341,12 +399,12 @@ const Editor: React.FC<EditorProps> = ({
             const currentW = canvas.getWidth();
             const currentH = canvas.getHeight();
             
-            // Calculate scale to fit (0.85 for better fit/less clipping)
+            // Calculate scale to fit (0.75 for safe margin)
             const imgW = frameImg.width || 100;
             const imgH = frameImg.height || 100;
             
-            const scaleX = (currentW * 0.85) / imgW;
-            const scaleY = (currentH * 0.85) / imgH;
+            const scaleX = (currentW * 0.75) / imgW;
+            const scaleY = (currentH * 0.75) / imgH;
             const scale = Math.min(scaleX, scaleY);
 
             // Configure Background (The Yellow part)
@@ -400,6 +458,9 @@ const Editor: React.FC<EditorProps> = ({
             
             setIsImageLoading(false);
             canvas.requestRenderAll();
+
+            // LOAD SAVED DESIGN FOR POLYMER
+            loadUserDesign(canvas);
             
         }).catch(e => {
             console.error(e);
@@ -489,8 +550,8 @@ const Editor: React.FC<EditorProps> = ({
              // Polymer (Image) resizing
              const imgW = refObj.width!;
              const imgH = refObj.height!;
-             const scaleX = (newW * 0.85) / imgW;
-             const scaleY = (newH * 0.85) / imgH;
+             const scaleX = (newW * 0.75) / imgW;
+             const scaleY = (newH * 0.75) / imgH;
              newScale = Math.min(scaleX, scaleY);
              
              canvas.getObjects().forEach((obj: any) => {

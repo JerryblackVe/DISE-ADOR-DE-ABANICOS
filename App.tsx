@@ -172,11 +172,12 @@ function App() {
     // 2. Load Auto-Detected fonts from src/fonts
     const loadAutoFonts = async () => {
         // Vite glob import to find files in src/fonts
-        const fontModules = (import.meta as any).glob('/src/fonts/*.{ttf,otf,woff}', { as: 'url', eager: true });
+        // @ts-ignore
+        const fontModules = import.meta.glob('/src/fonts/*.{ttf,otf,woff}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
         const newFontNames: string[] = [];
 
         for (const path in fontModules) {
-            const fontUrl = fontModules[path] as string;
+            const fontUrl = fontModules[path];
             // Extract filename without extension: /src/fonts/MyFont.ttf -> MyFont
             const fileName = path.split('/').pop()?.split('.')[0];
             if (fileName) {
@@ -294,6 +295,29 @@ function App() {
               canvas.renderAll();
           }
       }
+  };
+
+  // --- RESET DESIGN ---
+  const handleResetDesign = () => {
+      if(!canvas) return;
+      
+      // 1. Clear LocalStorage for current mode
+      const key = `saved_design_${fanType}`;
+      localStorage.removeItem(key);
+
+      // 2. Remove all user objects from Canvas
+      const objects = canvas.getObjects();
+      // Use a reversed loop or copy of array to avoid skipping elements when modifying array length
+      [...objects].forEach((obj: any) => {
+          // Keep only the template parts
+          if (obj.data?.id !== 'fan-background' && obj.data?.id !== 'fan-outline') {
+              canvas.remove(obj);
+          }
+      });
+      
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+      setSelectedObject(null);
   };
 
   // --- CANVAS HELPERS ---
@@ -800,6 +824,7 @@ function App() {
             customFonts={customFonts}
             autoLoadedFonts={autoLoadedFonts}
             onClose={() => setIsMobileToolsOpen(false)}
+            onResetDesign={handleResetDesign}
         />
       </div>
       
