@@ -94,13 +94,14 @@ function App() {
   // 6. Enabled Modes (Persistent - Prioritize LocalStorage, Fallback to GLOBAL_CONFIG)
   const [enabledModes, setEnabledModes] = useState<{cloth: boolean, polymer: boolean}>(() => {
       try {
-          const saved = localStorage.getItem('enabled_modes');
+          // Changed key to force reset of visibility settings
+          const saved = localStorage.getItem('fan_modes_visibility_v2');
           return saved ? JSON.parse(saved) : GLOBAL_CONFIG.enabledModes;
       } catch(e) { return GLOBAL_CONFIG.enabledModes; }
   });
 
   useEffect(() => {
-      localStorage.setItem('enabled_modes', JSON.stringify(enabledModes));
+      localStorage.setItem('fan_modes_visibility_v2', JSON.stringify(enabledModes));
   }, [enabledModes]);
 
   // INITIALIZATION: Fetch Default Cloth SVG
@@ -984,4 +985,3 @@ function App() {
 }
 
 export default App;
-    
