@@ -1,0 +1,9 @@
+
+COLOCA TUS FUENTES AQUÍ (.ttf o .otf)
+
+Cualquier archivo de fuente que coloques en esta carpeta (src/fonts) será:
+1. Detectado automáticamente por la aplicación.
+2. El nombre del archivo será el nombre de la fuente en el menú (ej: "MiFuente.ttf" -> "MiFuente").
+3. Cargado automáticamente en el editor.
+
+No necesitas modificar código, solo pegar los archivos aquí.

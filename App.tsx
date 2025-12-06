@@ -80,13 +80,16 @@ function App() {
   // New State for Selected Polymer Model ID
   const [selectedPolymerId, setSelectedPolymerId] = useState<string>(POLYMER_MODELS[0].id);
 
-  // 5. Custom Fonts
+  // 5. Custom Fonts (Manual Uploads)
   const [customFonts, setCustomFonts] = useState<CustomFont[]>(() => {
     try {
         const saved = localStorage.getItem('custom_fonts');
         return saved ? JSON.parse(saved) : [];
     } catch (e) { return []; }
   });
+
+  // 5b. Auto-detected fonts from src/fonts
+  const [autoLoadedFonts, setAutoLoadedFonts] = useState<string[]>([]);
 
   // 6. Enabled Modes (Persistent - Prioritize LocalStorage, Fallback to GLOBAL_CONFIG)
   const [enabledModes, setEnabledModes] = useState<{cloth: boolean, polymer: boolean}>(() => {
@@ -156,6 +159,7 @@ function App() {
 
   // Load Custom Fonts into DOM
   useEffect(() => {
+    // 1. Load User-uploaded fonts (localStorage)
     customFonts.forEach(font => {
       // @ts-ignore
       const fontFace = new FontFace(font.name, `url(${font.data})`);
@@ -163,6 +167,39 @@ function App() {
         (document.fonts as any).add(loadedFace);
       }).catch((e: any) => console.error("Error loading font:", font.name, e));
     });
+
+    // 2. Load Auto-Detected fonts from src/fonts
+    const loadAutoFonts = async () => {
+        // Vite glob import to find files in src/fonts
+        const fontModules = (import.meta as any).glob('/src/fonts/*.{ttf,otf,woff}', { as: 'url', eager: true });
+        const newFontNames: string[] = [];
+
+        for (const path in fontModules) {
+            const fontUrl = fontModules[path] as string;
+            // Extract filename without extension: /src/fonts/MyFont.ttf -> MyFont
+            const fileName = path.split('/').pop()?.split('.')[0];
+            if (fileName) {
+                // Remove hyphens/underscores for cleaner names
+                const fontName = fileName.replace(/[-_]/g, ' '); 
+                
+                try {
+                    // @ts-ignore
+                    const fontFace = new FontFace(fontName, `url(${fontUrl})`);
+                    const loadedFace = await fontFace.load();
+                    (document.fonts as any).add(loadedFace);
+                    newFontNames.push(fontName);
+                } catch (e) {
+                    console.error(`Failed to load auto font: ${fontName}`, e);
+                }
+            }
+        }
+        if (newFontNames.length > 0) {
+            console.log("Auto-loaded fonts:", newFontNames);
+            setAutoLoadedFonts(newFontNames);
+        }
+    };
+    loadAutoFonts();
+
   }, [customFonts]);
 
   // Apply Dark Mode Effect
@@ -760,6 +797,7 @@ function App() {
             ribColor={ribColor}
             onMatchRibColor={handleMatchRibColor}
             customFonts={customFonts}
+            autoLoadedFonts={autoLoadedFonts}
             onClose={() => setIsMobileToolsOpen(false)}
         />
       </div>
@@ -946,3 +984,4 @@ function App() {
 }
 
 export default App;
+    

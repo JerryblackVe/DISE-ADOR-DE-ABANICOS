@@ -31,7 +31,8 @@ interface ToolbarProps {
   ribColor: string;
   onMatchRibColor: () => void;
   customFonts?: CustomFont[];
-  onClose?: () => void; // New prop for mobile drawer
+  autoLoadedFonts?: string[]; // New prop for fonts from src/fonts
+  onClose?: () => void;
 }
 
 // Internal component to enforce "Select -> Apply" workflow
@@ -65,7 +66,7 @@ const ActionColorPicker = ({ label, initialColor, onApply }: { label?: string, i
     );
 };
 
-// Helper component for Color Grid - Changed to Flex Wrap for better mobile fit
+// Helper component for Color Grid
 const ColorGrid = ({ colors, selected, onSelect }: { colors: string[], selected: string, onSelect: (c: string) => void }) => (
     <div className="flex flex-wrap gap-2">
         {colors.map(color => (
@@ -100,6 +101,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   ribColor,
   onMatchRibColor,
   customFonts = [],
+  autoLoadedFonts = [],
   onClose
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -136,7 +138,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
       return false;
   }
 
-  const allFonts = [...AVAILABLE_FONTS, ...customFonts.map(f => f.name)];
+  // Combine Default Fonts + Auto Detected Fonts (src/fonts) + Manual Uploads (Admin)
+  const allFonts = [...AVAILABLE_FONTS, ...autoLoadedFonts, ...customFonts.map(f => f.name)];
+  // Remove duplicates
+  const uniqueFonts = Array.from(new Set(allFonts));
 
   return (
     // Responsive Container: Fills parent (40vh on mobile, full width/height on desktop)
@@ -312,7 +317,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                           value={selectedObject.fontFamily}
                           onChange={(e) => onUpdateObject('fontFamily', e.target.value)}
                         >
-                          {allFonts.map(f => <option key={f} value={f}>{f}</option>)}
+                          {uniqueFonts.map(f => <option key={f} value={f}>{f}</option>)}
                           <option value="CustomFontTemp">Propia (Temp)...</option>
                         </select>
                         <button onClick={() => fontFileInputRef.current?.click()} className="p-2 border rounded-lg dark:border-gray-600 dark:text-white h-10 w-10 flex items-center justify-center" title="Subir fuente">
