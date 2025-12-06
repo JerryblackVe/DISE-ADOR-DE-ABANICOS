@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import Toolbar from './components/Toolbar';
 import Editor from './components/Editor';
@@ -172,13 +171,14 @@ function App() {
     // 2. Load Auto-Detected fonts from src/fonts
     const loadAutoFonts = async () => {
         // Vite glob import to find files in src/fonts
+        // Changed path to ./src/fonts/ to be safer relative path
         // @ts-ignore
-        const fontModules = import.meta.glob('/src/fonts/*.{ttf,otf,woff}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+        const fontModules = import.meta.glob('./src/fonts/*.{ttf,otf,woff}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
         const newFontNames: string[] = [];
 
         for (const path in fontModules) {
             const fontUrl = fontModules[path];
-            // Extract filename without extension: /src/fonts/MyFont.ttf -> MyFont
+            // Extract filename without extension: ./src/fonts/MyFont.ttf -> MyFont
             const fileName = path.split('/').pop()?.split('.')[0];
             if (fileName) {
                 // Remove hyphens/underscores for cleaner names
